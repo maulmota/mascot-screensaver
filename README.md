@@ -23,13 +23,13 @@ Three skins, switchable live from the menu bar (each with its own signature anti
 
 | Clawd | Codex | Cube |
 |:---:|:---:|:---:|
-| <img src="assets/clawd.png" width="200" alt="Clawd, the Claude Code mascot"> | <img src="assets/codex.png" width="200" alt="Gradient cloud inspired by the Codex mark"> | <img src="assets/cursor.png" width="200" alt="Pixel cube inspired by the Cursor mark"> |
-| The Claude Code mascot, faithful to the terminal art. Drinks coffee, thinks in sparkles. | A soft gradient cloud inspired by the Codex mark, with the `> _` prompt as its face: the chevron winks and the underscore blinks like a caret. Levitates dreamily and rains little bits of code. | Inspired by the Cursor cube. Flips through fake 3D and ghost-completes its own label (tab, tab). |
+| <img src="assets/clawd.png" width="200" alt="Clawd, the Claude Code mascot"> | <img src="assets/codex.png" width="200" alt="Gradient cloud inspired by the Codex mark"> | <img src="assets/cursor.png" width="200" alt="Cube inspired by the Cursor mark"> |
+| The Claude Code mascot, faithful to the terminal art. Drinks coffee, thinks in sparkles. | A soft gradient cloud inspired by the Codex mark, with the `> _` prompt as its face: the chevron winks and the underscore blinks like a caret. Levitates dreamily and rains little bits of code. | The Cursor hexagon cube, white wedge visor and all. Flips through fake 3D and ghost-completes its own label (tab, tab). |
 
 ## Features
 
 - **Keeps the display awake** with a proper IOKit power assertion (`PreventUserIdleDisplaySleep`). Not a mouse jiggler: no fake input, nothing moves your cursor.
-- **Three switchable mascots**: authentic pixel Clawd (official orange, terminal-accurate 1:2 pixel proportions), the smooth Codex gradient cloud, and a pixel cube, all on the same footprint. Switching poofs one out and pops the next in.
+- **Three switchable mascots**: authentic pixel Clawd (official orange, terminal-accurate 1:2 pixel proportions), the smooth Codex gradient cloud, and the Cursor cube in its logo grays, all on the same footprint. Switching poofs one out and pops the next in.
 - **Alive**: breathes, blinks, glances around, and its eyes follow your cursor.
 - **Idle antics per mascot**: everyone stretches and shuffles; Clawd drinks coffee and thinks in ✻ sparkles, the Codex cloud levitates and rains code, the cube 3D-flips and plays autocomplete with its own label.
 - **A label with a bit**: the sign under the pet never sits still, typing through 250+ rotating statuses ("Reticulating…", "Achieving sentience…", "Basically Electron…") plus each mascot's own vocabulary.

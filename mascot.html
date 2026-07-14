@@ -15,7 +15,7 @@
                 official terminal art; body rgb(215,119,87)
        codex  — smooth gradient cloud inspired by the Codex mark, with
                 the "> _" prompt as its face (the one non-pixel skin)
-       cursor — pixel cube inspired by the Cursor mark
+       cursor — smooth hexagonal cube in the Cursor mark's grays
      ============================================================ */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -287,29 +287,41 @@ const SKINS = {
 
   cursor: {
     name: 'cursor',
-    color: '#C6C6C6',
+    color: '#6E6C68',
+    smooth: true,                       // vector cube, logo-faithful
     gerunds: ['Tabbing…', 'Indexing…', 'Autocompleting…', 'Vibe coding…',
               'Refactoring…', 'Shipping…'],
-    // isometric-ish cube: flat top face + two shaded front faces
+    // pointy-top hexagon cube like the mark: dark top-back, white wedge,
+    // gray side faces, light front sliver. Warm-neutral palette.
     body: [
-      { r: [6, 0, 6, 1],  f: '#F7F7F7' },           // top face (trapezoid rows)
-      { r: [4, 1, 10, 1], f: '#F7F7F7' },
-      { r: [3, 2, 12, 2], f: '#F7F7F7' },
-      { r: [3, 4, 6, 4],  f: '#C6C6C6', tag: 'left' },   // front-left face
-      { r: [9, 4, 6, 4],  f: '#6F6F6F', tag: 'right' },  // front-right face
+      { pts: [[9, 0], [4.8, 2.05], [13.2, 2.05]], f: '#403E3A' },              // top-back
+      { pts: [[4.8, 2.05], [4.8, 5.95], [9, 8], [9, 4.05]], f: '#6E6C68', tag: 'left' },
+      { pts: [[13.2, 2.05], [13.2, 5.95], [9, 8], [9, 4.05]], f: '#55534F', tag: 'right' },
+      { pts: [[9, 4.05], [9, 8], [11.7, 6.7]], f: '#D6D4CE' },                 // front sliver
+      { pts: [[4.8, 2.05], [13.2, 2.05], [9, 4.05]], f: '#F3F2EE' },           // white wedge
     ],
-    armL: { rects: [[2, 5, 1, 2]], fill: '#C6C6C6' },
-    armR: { rects: [[15, 5, 1, 2]], fill: '#6F6F6F' },
-    feetL: [[5, 8, 1, 2], [7, 8, 1, 2]],
-    feetR: [[10, 8, 1, 2], [12, 8, 1, 2]],
-    feetLFill: '#C6C6C6', feetRFill: '#6F6F6F',
-    eyes: { l: [6, 5], r: [11, 5], color: '#101010' },
-    blush: { pos: [[4.4, 6.4], [12.4, 6.4]], color: '#E89B9B' },
-    face: { x: 9, y: 6 },
-    glow: 'rgba(235,235,235,.22)',
-    poof: ['#F7F7F7', '#C6C6C6', '#6F6F6F'],
-    raiseL: 'translate(1.2px,-3.2px)', raiseR: 'translate(-1.2px,-3.2px)',
-    waveR: 'translate(-0.6px,-3.8px)',
+    armL: { rects: [{ r: [3.8, 4.4, 1.2, 1.8], rx: 0.6, f: '#6E6C68' }] },
+    armR: { rects: [{ r: [13.0, 4.4, 1.2, 1.8], rx: 0.6, f: '#55534F' }] },
+    feetL: [{ r: [6.6, 8.1, 1.4, 1.7], rx: 0.7, f: '#45433F' }],
+    feetR: [{ r: [10.0, 8.1, 1.4, 1.7], rx: 0.7, f: '#45433F' }],
+    eyes: {
+      color: '#26251F',
+      make(side) {
+        const [x, y] = side === 'l' ? [7.45, 2.35] : [9.65, 2.35];
+        const p = rect(x, y, 0.9, 1.1, '#26251F');
+        p.setAttribute('rx', 0.42);
+        p.setAttribute('ry', 0.42);
+        p.setAttribute('class', 'pupil');
+        return p;
+      },
+    },
+    eyeClamp: { up: -0.45, down: 0.4, side: 0.6 },
+    blush: { pos: [[5.7, 5.1], [11.3, 5.1]], color: '#E5A2A2', rx: 0.45 },
+    face: { x: 9, y: 3 },
+    glow: 'rgba(220,218,212,.18)',
+    poof: ['#F3F2EE', '#8B8985', '#55534F'],
+    raiseL: 'translate(1.2px,-2.6px)', raiseR: 'translate(-1.2px,-2.6px)',
+    waveR: 'translate(-0.8px,-3.2px)',
     events: () => [[evGlance, 4], [evShuffle, 3], [evFlip, 2.2], [evTabTab, 2], [evStretch, 1.2]],
     trick: 'tabtab',
   },
@@ -359,9 +371,17 @@ function glyph(x, y, str, size, fill) {
 // A geometry part is [x, y, w, h] (plain rect) or an object:
 //   { r: [x, y, w, h], rx?, f?, dir?, tag? }   (rounded) rect
 //   { c: [cx, cy, radius], f?, dir?, tag? }    circle
+//   { pts: [[x, y], ...], f?, dir?, tag? }     polygon
 function makeNode(part, fallbackFill) {
   const p = Array.isArray(part) ? { r: part } : part;
   let node;
+  if (p.pts) {
+    node = document.createElementNS(SVGNS, 'polygon');
+    node.setAttribute('points', p.pts.map(v => v.join(',')).join(' '));
+    node.setAttribute('fill', p.f || fallbackFill);
+    if (p.dir) node.__dir = p.dir;
+    return node;
+  }
   if (p.c) {
     node = document.createElementNS(SVGNS, 'circle');
     node.setAttribute('cx', p.c[0]);
