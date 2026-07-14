@@ -2,21 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>claude code mascot</title>
+<title>mascot</title>
 <style>
   /* ============================================================
-     Clawd — the Claude Code mascot, faithfully pixel-gridded.
-     Sprite geometry extracted from the official terminal art.
+     Desktop pet mascots on a shared pixel grid + behavior engine.
      Grid: 1 unit horizontally = half a terminal column,
            2 units vertically  = half a terminal row (cells are 1:2),
      so a terminal "quadrant pixel" is a 1x2 rect here.
-     Body rgb(215,119,87) (official clawd_body), black eyes.
+
+     Skins (see SKINS in the script):
+       clawd  — the Claude Code mascot, geometry extracted from the
+                official terminal art; body rgb(215,119,87)
+       openai — pixel blossom inspired by the OpenAI mark
+       cursor — pixel cube inspired by the Cursor mark
      ============================================================ */
-  :root {
-    --clawd: #D77757;      /* official clawd_body */
-    --clawd-lite: #E8956B;
-    --ink: #0f0f0f;
-  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
     background: transparent;
@@ -43,7 +42,6 @@
     width: 154px;    /* 22 units x 7px */
     height: 154px;   /* 22 units x 7px (10 units of headroom above the head) */
     shape-rendering: crispEdges;
-    filter: drop-shadow(0 0 9px rgba(215, 119, 87, 0.30));
   }
   svg#sprite * { transform-box: fill-box; }
 
@@ -68,6 +66,7 @@
     text-shadow: 0 0 6px rgba(0, 0, 0, 0.75);
     white-space: nowrap;
   }
+  #labelghost { color: #565656; }
   .cursor {
     display: inline-block;
     width: 5px;
@@ -90,7 +89,7 @@
     100% { opacity: 0;   transform: translateY(-3.2px); }
   }
 
-  /* macOS-style hover close button, floats in the headroom above Clawd */
+  /* macOS-style hover close button, floats in the headroom above the pet */
   #close-btn {
     position: absolute;
     top: 12px;
@@ -119,43 +118,29 @@
 <body>
   <div id="stage">
     <svg id="sprite" viewBox="-2 -10 22 22" xmlns="http://www.w3.org/2000/svg">
-      <!-- ground shadow (kept outside jump so it stays down while Clawd hops) -->
+      <!-- ground shadow (kept outside jump so it stays down during hops) -->
       <ellipse id="shadow" cx="9" cy="10.9" rx="7.2" ry="0.55"
                fill="#000" opacity="0.16" shape-rendering="auto"/>
       <g id="jump">
         <g id="tilt">
           <g id="breathe">
-            <!-- ==== authentic Clawd silhouette ==== -->
-            <g id="body" fill="var(--clawd)">
-              <rect x="3" y="0" width="12" height="4"/>   <!-- head  ▐▛███▜▌ -->
-              <rect x="2" y="4" width="14" height="2"/>   <!-- torso -->
-              <rect x="3" y="6" width="12" height="2"/>   <!-- hips  -->
-            </g>
-            <g id="armL" fill="var(--clawd)"><rect x="1"  y="4" width="1" height="2"/></g>
-            <g id="armR" fill="var(--clawd)"><rect x="16" y="4" width="1" height="2"/></g>
-            <g id="feetL" fill="var(--clawd)">
-              <rect x="4" y="8" width="1" height="2"/>
-              <rect x="6" y="8" width="1" height="2"/>
-            </g>
-            <g id="feetR" fill="var(--clawd)">
-              <rect x="11" y="8" width="1" height="2"/>
-              <rect x="13" y="8" width="1" height="2"/>
-            </g>
-            <!-- blush, shows when petted -->
-            <rect id="blushL" x="3.3"  y="3.1" width="1.3" height="0.9"
-                  fill="var(--clawd-lite)" opacity="0"/>
-            <rect id="blushR" x="13.4" y="3.1" width="1.3" height="0.9"
-                  fill="var(--clawd-lite)" opacity="0"/>
-            <!-- eyes: black quadrant rects at (5,2) and (12,2) -->
-            <g id="eyeL"><rect class="pupil" x="5"  y="2" width="1" height="2" fill="var(--ink)"/></g>
-            <g id="eyeR"><rect class="pupil" x="12" y="2" width="1" height="2" fill="var(--ink)"/></g>
+            <!-- skin geometry is built here by buildSkin() -->
+            <g id="body"></g>
+            <g id="armL"></g>
+            <g id="armR"></g>
+            <g id="feetL"></g>
+            <g id="feetR"></g>
+            <rect id="blushL" width="1.3" height="0.9" opacity="0"/>
+            <rect id="blushR" width="1.3" height="0.9" opacity="0"/>
+            <g id="eyeL"></g>
+            <g id="eyeR"></g>
           </g>
         </g>
       </g>
       <!-- effects: poofs, sparkles, zzz, coffee -->
       <g id="fx" shape-rendering="crispEdges"></g>
     </svg>
-    <div class="label"><span id="labeltext">claude code</span><span class="cursor"></span></div>
+    <div class="label"><span id="labeltext"></span><span id="labelghost"></span><span class="cursor"></span></div>
   </div>
 
   <div id="close-btn" title="Quit mascot">&times;</div>
@@ -163,17 +148,18 @@
 <script>
 'use strict';
 /* ================================================================
-   Clawd behavior engine
+   Behavior engine + skins
    Native bridge (Swift calls in):
-     mascot.setPointer(x, y)   — global cursor in window CSS coords
-     mascot.setAwake(bool)     — keep-awake assertion state
-     mascot.windowMoved(dx,dy) — live window-drag deltas
-     mascot.wave() / mascot.poke() / mascot.demo()
+     mascot.setPointer(x, y)      — global cursor in window CSS coords
+     mascot.setAwake(bool)        — keep-awake assertion state
+     mascot.setSkin(name, anim)   — switch mascot: clawd | openai | cursor
+     mascot.windowMoved(dx,dy)    — live window-drag deltas
+     mascot.wave() / mascot.poke() / mascot.play(name) / mascot.demo()
    JS -> Swift: "quit" message, "hitRect" message ({body, close} rects)
    ================================================================ */
 const $ = id => document.getElementById(id);
 const SVGNS = 'http://www.w3.org/2000/svg';
-const CLAWD = '#D77757', CLAWD_LITE = '#E8B4A0', GRAY = '#9a9a9a';
+const GRAY = '#9a9a9a';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rand  = (a, b) => a + Math.random() * (b - a);
 const pick  = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -181,10 +167,10 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const el = {
   sprite: $('sprite'), jump: $('jump'), tilt: $('tilt'), breathe: $('breathe'),
-  shadow: $('shadow'), armL: $('armL'), armR: $('armR'),
+  shadow: $('shadow'), body: $('body'), armL: $('armL'), armR: $('armR'),
   feetL: $('feetL'), feetR: $('feetR'), eyeL: $('eyeL'), eyeR: $('eyeR'),
   blushL: $('blushL'), blushR: $('blushR'), fx: $('fx'),
-  label: $('labeltext'), close: $('close-btn'), stage: $('stage'),
+  label: $('labeltext'), ghost: $('labelghost'), close: $('close-btn'), stage: $('stage'),
 };
 
 const state = {
@@ -202,6 +188,104 @@ const state = {
 };
 const gaze = (x, y) => ({ lx: x, ly: y, rx: x, ry: y });
 
+/* ================================================================
+   Skins. Geometry is [x, y, w, h] in grid units, y from the top;
+   every skin shares the same footprint (body x1..x17, ground y10)
+   so the hitbox, shadow, and label stay put.
+   ================================================================ */
+const SKINS = {
+  clawd: {
+    name: 'clawd',
+    color: '#D77757',                       // official clawd_body
+    home: 'claude code',
+    gerunds: ['Pondering…', 'Scheming…', 'Noodling…', 'Vibing…',
+              'Percolating…', 'Ruminating…', 'Herding bits…', 'Keeping awake…'],
+    body: [
+      { r: [3, 0, 12, 4] },                 // head  ▐▛███▜▌
+      { r: [2, 4, 14, 2] },                 // torso
+      { r: [3, 6, 12, 2] },                 // hips
+    ],
+    armL: { rects: [[1, 4, 1, 2]] },
+    armR: { rects: [[16, 4, 1, 2]] },
+    feetL: [[4, 8, 1, 2], [6, 8, 1, 2]],
+    feetR: [[11, 8, 1, 2], [13, 8, 1, 2]],
+    eyes: { l: [5, 2], r: [12, 2], color: '#0f0f0f' },
+    blush: { pos: [[3.3, 3.1], [13.4, 3.1]], color: '#E8956B' },
+    face: { x: 9, y: 3 },
+    glow: 'rgba(215,119,87,.30)',
+    poof: ['#D77757', '#E8B4A0', '#bbb'],
+    raiseL: 'translate(1.4px,-3.8px)', raiseR: 'translate(-1.4px,-3.8px)',
+    waveR: 'translate(-0.4px,-4.2px)',
+    events: () => [[evGlance, 4], [evShuffle, 3], [evStretch, 2], [evThink, 2], [evCoffee, 1.5]],
+    trick: 'coffee',
+  },
+
+  openai: {
+    name: 'openai',
+    color: '#EDEDED',                       // monochrome blossom
+    home: 'openai',
+    gerunds: ['Reasoning…', 'Aligning…', 'Pretraining…', 'Scaling…',
+              'Attending…', 'Emerging…'],
+    // six lobes around a center block; E/W lobes double as arms
+    // six petals in the hexagonal blossom arrangement; NW/NE petals are the arms
+    body: [
+      { r: [5, 2, 8, 4] },                          // center
+      { r: [6, 0, 6, 2],  dir: [0, -1] },           // N  (12 o'clock, wide)
+      { r: [3, 5, 2, 2],  dir: [-0.8, 0.8] },       // SW (8 o'clock)
+      { r: [13, 5, 2, 2], dir: [0.8, 0.8] },        // SE (4 o'clock)
+      { r: [7, 6, 4, 2],  dir: [0, 1] },            // S  (6 o'clock)
+    ],
+    armL: { rects: [[3, 1, 2, 2]], dir: [-0.8, -0.8] },   // NW (10 o'clock)
+    armR: { rects: [[13, 1, 2, 2]], dir: [0.8, -0.8] },   // NE (2 o'clock)
+    feetL: [[7, 8, 1, 2]],
+    feetR: [[10, 8, 1, 2]],
+    eyes: { l: [6, 4], r: [11, 4], color: '#0f0f0f' },
+    blush: { pos: [[5.1, 4.9], [11.7, 4.9]], color: '#F2B4B4' },
+    face: { x: 9, y: 5 },
+    glow: 'rgba(237,237,237,.28)',
+    poof: ['#EDEDED', '#cfcfcf', '#a8a8a8'],
+    raiseL: 'translate(0.6px,-2.2px)', raiseR: 'translate(-0.6px,-2.2px)',
+    waveR: 'translate(-0.4px,-2.6px)',
+    events: () => [[evGlance, 4], [evShuffle, 3], [evSpin, 2.2], [evBloom, 2], [evStretch, 1.5]],
+    trick: 'spin',
+  },
+
+  cursor: {
+    name: 'cursor',
+    color: '#C6C6C6',
+    home: 'cursor',
+    gerunds: ['Tabbing…', 'Indexing…', 'Autocompleting…', 'Vibe coding…',
+              'Refactoring…', 'Shipping…'],
+    // isometric-ish cube: flat top face + two shaded front faces
+    body: [
+      { r: [6, 0, 6, 1],  f: '#F7F7F7' },           // top face (trapezoid rows)
+      { r: [4, 1, 10, 1], f: '#F7F7F7' },
+      { r: [3, 2, 12, 2], f: '#F7F7F7' },
+      { r: [3, 4, 6, 4],  f: '#C6C6C6', tag: 'left' },   // front-left face
+      { r: [9, 4, 6, 4],  f: '#6F6F6F', tag: 'right' },  // front-right face
+    ],
+    armL: { rects: [[2, 5, 1, 2]], fill: '#C6C6C6' },
+    armR: { rects: [[15, 5, 1, 2]], fill: '#6F6F6F' },
+    feetL: [[5, 8, 1, 2], [7, 8, 1, 2]],
+    feetR: [[10, 8, 1, 2], [12, 8, 1, 2]],
+    feetLFill: '#C6C6C6', feetRFill: '#6F6F6F',
+    eyes: { l: [6, 5], r: [11, 5], color: '#101010' },
+    blush: { pos: [[4.4, 6.4], [12.4, 6.4]], color: '#E89B9B' },
+    face: { x: 9, y: 6 },
+    glow: 'rgba(235,235,235,.22)',
+    poof: ['#F7F7F7', '#C6C6C6', '#6F6F6F'],
+    raiseL: 'translate(1.2px,-3.2px)', raiseR: 'translate(-1.2px,-3.2px)',
+    waveR: 'translate(-0.6px,-3.8px)',
+    events: () => [[evGlance, 4], [evShuffle, 3], [evFlip, 2.2], [evTabTab, 2], [evStretch, 1.2]],
+    trick: 'tabtab',
+  },
+};
+
+let current = SKINS.clawd;
+let activeSkin = '';
+let skinParts = {};      // per-skin element refs (cube faces, ...)
+let EVENTS = [];
+
 /* ---------- geometry helpers (svg units <-> CSS px) ---------- */
 function svgScale() { return el.sprite.getBoundingClientRect().width / 22; }
 function unitToCss(ux, uy) {
@@ -209,7 +293,6 @@ function unitToCss(ux, uy) {
   const s = r.width / 22;
   return { x: r.left + (ux + 2) * s, y: r.top + (uy + 10) * s };
 }
-const FACE = { x: 9, y: 3 };  // between the eyes
 
 /* ---------- tiny tween helper (WAAPI, settles inline style) ---------- */
 function move(node, to, ms, ease) {
@@ -236,6 +319,77 @@ function glyph(x, y, str, size, fill) {
   t.setAttribute('font-family', 'ui-monospace, Menlo, monospace');
   t.textContent = str;
   return t;
+}
+
+/* ---------- skin construction ---------- */
+function buildSkin(s) {
+  const fillGroup = (g, rects, fill) => {
+    g.replaceChildren();
+    (rects || []).forEach(([x, y, w, h]) => g.appendChild(rect(x, y, w, h, fill || s.color)));
+  };
+
+  el.body.replaceChildren();
+  skinParts = {};
+  for (const part of s.body) {
+    const node = rect(...part.r, part.f || s.color);
+    if (part.dir) node.__dir = part.dir;
+    if (part.tag) skinParts[part.tag] = node;
+    el.body.appendChild(node);
+  }
+  fillGroup(el.armL, s.armL.rects, s.armL.fill);
+  fillGroup(el.armR, s.armR.rects, s.armR.fill);
+  fillGroup(el.feetL, s.feetL, s.feetLFill);
+  fillGroup(el.feetR, s.feetR, s.feetRFill);
+
+  const pupil = (g, [x, y]) => {
+    const p = rect(x, y, 1, 2, s.eyes.color);
+    p.setAttribute('class', 'pupil');
+    g.replaceChildren(p);
+  };
+  pupil(el.eyeL, s.eyes.l);
+  pupil(el.eyeR, s.eyes.r);
+
+  [el.blushL, el.blushR].forEach((b, i) => {
+    b.setAttribute('x', s.blush.pos[i][0]);
+    b.setAttribute('y', s.blush.pos[i][1]);
+    b.setAttribute('fill', s.blush.color);
+    b.setAttribute('opacity', 0);
+  });
+
+  // reset any leftover event transforms
+  [el.armL, el.armR, el.feetL, el.feetR, el.jump, el.eyeL, el.eyeR]
+    .forEach(g => { g.style.transform = ''; });
+  el.jump.style.transformOrigin = '';
+  state.eye = gaze2(0, 0); state.eyeT = gaze2(0, 0); state.eyeOverride = null;
+
+  el.sprite.style.filter = `drop-shadow(0 0 9px ${s.glow})`;
+  EVENTS = s.events();
+  el.label.textContent = state.awake ? s.home : BREAK_LABEL;
+  el.ghost.textContent = '';
+  applyEyeBase();
+}
+function gaze2(x, y) { return { lx: x, ly: y, rx: x, ry: y }; }
+
+async function setSkin(name, animate = true) {
+  const def = SKINS[name];
+  if (!def || name === activeSkin) return;
+  if (animate && activeSkin) {
+    poof(current.face.x, current.face.y + 3);
+    await move(el.jump, 'scale(0.1)', 170, 'ease-in');
+  }
+  activeSkin = name;
+  current = def;
+  buildSkin(def);
+  if (animate) {
+    el.jump.style.transform = 'scale(0.1)';
+    poof(def.face.x, def.face.y + 3);
+    await el.jump.animate(
+      [{ transform: 'scale(0.1)' }, { transform: 'scale(1.14)', offset: 0.7 },
+       { transform: 'scale(1)' }],
+      { duration: 300, easing: 'ease-out' }
+    ).finished.catch(() => {});
+    el.jump.style.transform = '';
+  }
 }
 
 /* ---------- blink ---------- */
@@ -266,7 +420,7 @@ async function blink(hold) {
 })();
 
 /* ---------- eyes: spring toward target, cursor-aware ---------- */
-/* Authentic pose offsets (from the terminal art) — only the outer
+/* Authentic pose offsets (from Clawd's terminal art) — only the outer
    eye shifts sideways: look-left L(-1,-1) R(0,-1), look-right L(0,-1) R(+1,-1)
    (quadrant offsets; a quadrant is 2 units tall here) */
 const LOOK_LEFT  = { lx: -1, ly: -2, rx: 0, ry: -2 };
@@ -293,7 +447,7 @@ let perk = 1;
   if (state.eyeOverride) {
     state.eyeT = state.eyeOverride;
   } else if (now - state.ptr.t < 3500) {
-    const f = unitToCss(FACE.x, FACE.y);
+    const f = unitToCss(current.face.x, current.face.y);
     const dx = state.ptr.x - f.x, dy = state.ptr.y - f.y;
     const dist = Math.hypot(dx, dy);
     if (dist < 420) {
@@ -330,6 +484,7 @@ let perk = 1;
 let typeToken = 0;
 async function typeLabel(str) {
   const my = ++typeToken;
+  el.ghost.textContent = '';
   while (el.label.textContent.length && my === typeToken) {
     el.label.textContent = el.label.textContent.slice(0, -1);
     await sleep(24);
@@ -340,18 +495,15 @@ async function typeLabel(str) {
     await sleep(48);
   }
 }
-const HOME_LABEL = 'claude code';
 const BREAK_LABEL = 'on a break…';
-const restoreLabel = () => typeLabel(state.awake ? HOME_LABEL : BREAK_LABEL);
-const GERUNDS = ['Pondering…', 'Scheming…', 'Noodling…', 'Vibing…',
-                 'Percolating…', 'Ruminating…', 'Herding bits…', 'Keeping awake…'];
+const restoreLabel = () => typeLabel(state.awake ? current.home : BREAK_LABEL);
 
 /* ---------- particles ---------- */
 function poof(cx, cy) {
-  const colors = [CLAWD, CLAWD_LITE, '#bbb', CLAWD_LITE, CLAWD, '#bbb'];
+  const colors = current.poof;
   for (let i = 0; i < 6; i++) {
     const side = i % 2 ? 1 : -1;
-    const p = rect(cx + side * (1 + i * 0.55), cy, 0.85, 0.9, colors[i], 0.95);
+    const p = rect(cx + side * (1 + i * 0.55), cy, 0.85, 0.9, colors[i % colors.length], 0.95);
     el.fx.appendChild(p);
     p.animate(
       [{ transform: 'translate(0,0)', opacity: 0.95 },
@@ -364,7 +516,7 @@ async function sparkles() {
   const spots = [[4.2, -3.8, 2.2], [10.6, -7.4, 1.7], [14.4, -2.8, 1.4]];
   const made = [];
   for (const [x, y, size] of spots) {
-    const s = glyph(x, y, '✻', size, CLAWD);
+    const s = glyph(x, y, '✻', size, current.color);
     s.setAttribute('opacity', '0');
     el.fx.appendChild(s); made.push(s);
     s.animate(
@@ -404,18 +556,17 @@ async function hop(height) {
   poof(9, 9.1);
 }
 async function armsUp(up, ms) {
-  // raised nubs sit beside the head, like the authentic arms-up pose
   await Promise.all([
-    move(el.armL, up ? 'translate(1.4px,-3.8px)' : 'translate(0,0)', ms || 320),
-    move(el.armR, up ? 'translate(-1.4px,-3.8px)' : 'translate(0,0)', ms || 320),
+    move(el.armL, up ? current.raiseL : 'translate(0,0)', ms || 320),
+    move(el.armR, up ? current.raiseR : 'translate(0,0)', ms || 320),
   ]);
 }
 async function waveArm() {
   el.armR.style.transformOrigin = '50% 100%';
-  await move(el.armR, 'translate(-0.4px,-4.2px)', 260);
+  await move(el.armR, current.waveR, 260);
   for (let i = 0; i < 3; i++) {
-    await move(el.armR, 'translate(-0.4px,-4.2px) rotate(24deg)', 150, 'ease-in-out');
-    await move(el.armR, 'translate(-0.4px,-4.2px) rotate(-18deg)', 150, 'ease-in-out');
+    await move(el.armR, `${current.waveR} rotate(24deg)`, 150, 'ease-in-out');
+    await move(el.armR, `${current.waveR} rotate(-18deg)`, 150, 'ease-in-out');
   }
   await move(el.armR, 'translate(0,0)', 300);
 }
@@ -427,7 +578,7 @@ function blush(on) {
   });
 }
 
-/* ---------- idle events ---------- */
+/* ---------- shared idle events ---------- */
 async function evStretch() {
   await armsUp(true, 420);
   await move(el.jump, 'scaleY(1.07)', 380, 'ease-out');   // #breathe is owned by CSS
@@ -447,8 +598,16 @@ async function evShuffle() {
   }
   await move(el.jump, 'translate(0,0)', 200);
 }
+/* authentic look-left / look-right glances (snappy, terminal-style) */
+async function evGlance() {
+  state.eyeOverride = Math.random() < 0.5 ? LOOK_LEFT : LOOK_RIGHT;
+  await sleep(rand(700, 1200));
+  state.eyeOverride = null;
+}
+
+/* ---------- clawd events ---------- */
 async function evThink() {
-  typeLabel(pick(GERUNDS));
+  typeLabel(pick(current.gerunds));
   state.eyeOverride = gaze(0.4, -1.7);
   await sparkles();
   state.eyeOverride = null;
@@ -456,7 +615,6 @@ async function evThink() {
 }
 async function evCoffee() {
   typeLabel('Caffeinating…');
-  // pixel mug slides in at Clawd's right
   const mug = document.createElementNS(SVGNS, 'g');
   mug.appendChild(rect(0, 0, 2, 3, '#efe7db'));
   mug.appendChild(rect(0.25, 0.5, 1.5, 0.9, '#6b4433'));   // coffee
@@ -479,7 +637,6 @@ async function evCoffee() {
 
   state.eyeOverride = LOOK_RIGHT;            // notice the coffee
   await sleep(800);
-  // reach + lift the mug toward the face, take a sip
   const reach = move(el.armR, 'translate(-0.3px,-1.2px)', 260);
   await move(mug, 'translate(14.4px, 2.2px) rotate(-14deg)', 480, 'ease-in-out');
   await reach;
@@ -494,16 +651,84 @@ async function evCoffee() {
      .finished.then(() => mug.remove()).catch(() => mug.remove());
   restoreLabel();
 }
-/* authentic look-left / look-right glances (snappy, terminal-style) */
-async function evGlance() {
-  state.eyeOverride = Math.random() < 0.5 ? LOOK_LEFT : LOOK_RIGHT;
-  await sleep(rand(700, 1200));
-  state.eyeOverride = null;
+
+/* ---------- openai events ---------- */
+async function evSpin() {
+  typeLabel(pick(['Spinning up…', 'Reasoning…']));
+  el.jump.style.transformOrigin = '50% 55%';
+  await move(el.jump, 'rotate(-25deg)', 280, 'ease-in-out');   // wind up
+  await sleep(120);
+  await move(el.jump, 'rotate(335deg)', 720, 'cubic-bezier(.35,.1,.25,1)');
+  await move(el.jump, 'rotate(360deg)', 180, 'ease-out');
+  el.jump.style.transform = '';
+  el.jump.style.transformOrigin = '';
+  poof(current.face.x, 5);
+  await sleep(400);
+  restoreLabel();
+}
+async function evBloom() {
+  typeLabel(pick(['Blooming…', 'Emerging…']));
+  const lobes = [...el.body.children].filter(c => c.__dir);
+  const out = (node, [dx, dy]) => node.animate(
+    [{ transform: 'translate(0,0)' },
+     { transform: `translate(${dx * 0.9}px, ${dy * 0.9}px)`, offset: 0.3 },
+     { transform: `translate(${dx * 0.9}px, ${dy * 0.9}px)`, offset: 0.65 },
+     { transform: 'translate(0,0)' }],
+    { duration: 1500, easing: 'ease-in-out' }
+  ).finished.catch(() => {});
+  const glowPulse = el.sprite.animate(
+    [{ filter: `drop-shadow(0 0 9px ${current.glow})` },
+     { filter: `drop-shadow(0 0 16px rgba(255,255,255,.55))`, offset: 0.45 },
+     { filter: `drop-shadow(0 0 9px ${current.glow})` }],
+    { duration: 1500, easing: 'ease-in-out' }
+  ).finished.catch(() => {});
+  const anims = lobes.map(c => out(c, c.__dir));
+  anims.push(out(el.armL, current.armL.dir), out(el.armR, current.armR.dir));
+  await sleep(350);
+  blink(true);                                 // serene closed eyes at full bloom
+  await Promise.all([...anims, glowPulse]);
+  restoreLabel();
 }
 
-const EVENTS = [
-  [evGlance, 4], [evShuffle, 3], [evStretch, 2], [evThink, 2], [evCoffee, 1.5],
-];
+/* ---------- cursor events ---------- */
+async function evFlip() {
+  typeLabel(pick(['Reindexing…', 'Refactoring…']));
+  // swap shading on faces, arms, and feet so the whole cube reads rotated
+  const lefts  = [skinParts.left,  ...el.armL.children, ...el.feetL.children];
+  const rights = [skinParts.right, ...el.armR.children, ...el.feetR.children];
+  const swapFills = () => lefts.forEach((n, i) => {
+    const r = rights[i];
+    if (!n || !r) return;
+    const lf = n.getAttribute('fill');
+    n.setAttribute('fill', r.getAttribute('fill'));
+    r.setAttribute('fill', lf);
+  });
+  for (let i = 0; i < 2; i++) {
+    await move(el.jump, 'scaleX(0.08)', 170, 'ease-in');
+    if (skinParts.left && skinParts.right) swapFills();
+    await move(el.jump, 'scaleX(1)', 210, 'cubic-bezier(.34,1.4,.5,1)');
+  }
+  el.jump.style.transform = '';
+  await sleep(300);
+  restoreLabel();
+}
+async function evTabTab() {
+  await typeLabel('const nap = ');
+  el.ghost.textContent = 'prevent()';          // ghost completion
+  await sleep(1000);
+  for (let i = 0; i < 2; i++) {                // tab, tab
+    await move(el.jump, 'translate(0,1px)', 80, 'ease-out');
+    await move(el.jump, 'translate(0,0)', 90, 'ease-out');
+    await sleep(60);
+  }
+  el.label.textContent += el.ghost.textContent; // accepted!
+  el.ghost.textContent = '';
+  blink(true);
+  await sleep(1400);
+  restoreLabel();
+}
+
+/* ---------- scheduler ---------- */
 function pickEvent() {
   const total = EVENTS.reduce((s, [, w]) => s + w, 0);
   let roll = Math.random() * total;
@@ -546,7 +771,7 @@ function setAwake(on) {
     }, 2200);
   } else {
     clearInterval(zzzTimer); zzzTimer = null;
-    typeLabel(HOME_LABEL);
+    restoreLabel();
     runEvent(evStretch);   // good morning
   }
 }
@@ -555,7 +780,7 @@ function setAwake(on) {
 let hoverTimer = null;
 function setPointer(x, y) {
   state.ptr = { x, y, t: performance.now() };
-  const f = unitToCss(FACE.x, FACE.y);
+  const f = unitToCss(current.face.x, current.face.y);
   state.near = Math.hypot(x - f.x, y - f.y) < 190;
 
   const b = zones.body, c = zones.close;
@@ -587,7 +812,7 @@ function computeZones() {
   const s = svgScale();
   const svgR = el.sprite.getBoundingClientRect();
   const labelR = el.label.parentElement.getBoundingClientRect();
-  // body ink spans units x1..x17, y0..y10
+  // body ink spans units x1..x17, y0..y10 (same footprint for all skins)
   const left = svgR.left + 3 * s, right = svgR.left + 19 * s;
   const top  = svgR.top + 10 * s;
   const x = Math.min(left, labelR.left) - 4;
@@ -603,20 +828,29 @@ window.addEventListener('load', () => requestAnimationFrame(computeZones));
 window.addEventListener('resize', computeZones);
 
 /* ---------- public bridge ---------- */
+const PLAY = {
+  glance: evGlance, shuffle: evShuffle, stretch: evStretch,
+  think: evThink, coffee: evCoffee,
+  spin: evSpin, bloom: evBloom,
+  flip: evFlip, tabtab: evTabTab,
+};
 window.mascot = {
   setPointer,
   setAwake,
+  setSkin,
+  skins: Object.keys(SKINS),
   windowMoved(dx, dy) {
     state.tiltT = clamp(-dx * 1.35, -13, 13);
     state.tiltPeak = Math.max(state.tiltPeak, Math.abs(state.tiltT));
     state.lastMove = performance.now();
   },
   wave() { runEvent(waveArm); },
+  play(name) { if (PLAY[name]) runEvent(PLAY[name]); },
   poke() {
     if (state.busy) { blush(true); setTimeout(() => !state.overBody && blush(false), 900); return; }
     runEvent(async () => {
       blush(true);
-      typeLabel(pick(['boing!', 'hehe', '✻!', ':)']));
+      typeLabel(pick(['boing!', 'hehe', ':)', '!']));
       await hop(4.8);
       await sleep(500);
       if (!state.overBody) blush(false);
@@ -627,18 +861,18 @@ window.mascot = {
     await runEvent(waveArm);
     this.poke(); await sleep(1600);
     await runEvent(evShuffle);
-    await runEvent(evThink);
-    await runEvent(evCoffee);
+    for (const s of Object.keys(SKINS)) {
+      await setSkin(s); await sleep(1200);
+      await runEvent(PLAY[SKINS[s].trick]); await sleep(600);
+    }
     this.setAwake(false); await sleep(5200);
     this.setAwake(true);
   },
-  // direct access to the idle events (testing / menu tricks)
-  play(name) {
-    const ev = { glance: evGlance, shuffle: evShuffle, stretch: evStretch,
-                 think: evThink, coffee: evCoffee }[name];
-    if (ev) runEvent(ev);
-  },
 };
+
+/* ---------- boot ---------- */
+buildSkin(current);
+activeSkin = 'clawd';
 
 /* ---------- close button + browser-preview fallbacks ---------- */
 el.close.addEventListener('click', () => {
@@ -651,8 +885,11 @@ if (!window.webkit?.messageHandlers?.quit) {
   // running in a normal browser: emulate the Swift feeds
   window.addEventListener('mousemove', e => setPointer(e.clientX, e.clientY));
   window.addEventListener('click', e => { if (e.target !== el.close) mascot.poke(); });
-  // ?pose=coffee|think|stretch|shuffle|sleep|wave — for docs screenshots
-  const pose = new URLSearchParams(location.search).get('pose');
+  // ?skin=openai&pose=spin — for docs screenshots and dev
+  const params = new URLSearchParams(location.search);
+  const skin = params.get('skin');
+  if (skin && SKINS[skin]) setSkin(skin, false);
+  const pose = params.get('pose');
   if (pose === 'sleep') setTimeout(() => setAwake(false), 400);
   else if (pose === 'wave') setTimeout(() => mascot.wave(), 400);
   else if (pose) setTimeout(() => mascot.play(pose), 400);

@@ -1,8 +1,11 @@
 #!/usr/bin/env swift
 //
-// Mascot — Clawd, the Claude Code desktop pet that keeps the Mac awake.
+// Mascot — a desktop pet that keeps the Mac awake.
+// Ships three switchable skins: Clawd (the Claude Code mascot), a pixel
+// blossom inspired by the OpenAI mark, and a pixel cube inspired by the
+// Cursor mark.
 //
-// A borderless floating window hosts mascot.html (the pixel Clawd art and
+// A borderless floating window hosts mascot.html (the pixel art and
 // behavior engine). This file owns everything native:
 //   * the IOKit display-sleep assertion (PowerManager)
 //   * the tight, click-through-aware window (mouse-location polling flips
@@ -123,11 +126,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     private let winSize = NSSize(width: 170, height: 178)
     private let screenMargin: CGFloat = 24
 
+    // Mascot skins, mirrored in mascot.html's SKINS table.
+    private struct Skin {
+        let id: String
+        let title: String
+        let glyph: String        // menu bar symbol while this skin is active
+        let trickTitle: String   // per-skin trick in the menu
+        let trick: String        // mascot.play(...) name
+    }
+    private let skins = [
+        Skin(id: "clawd",  title: "Clawd",  glyph: "✻", trickTitle: "Coffee break", trick: "coffee"),
+        Skin(id: "openai", title: "OpenAI", glyph: "⬡", trickTitle: "Spin",         trick: "spin"),
+        Skin(id: "cursor", title: "Cursor", glyph: "▮", trickTitle: "Tab, tab",     trick: "tabtab"),
+    ]
+    private let skinKey = "mascotSkin"
+    private var activeSkin: Skin {
+        let saved = UserDefaults.standard.string(forKey: skinKey)
+        return skins.first { $0.id == saved } ?? skins[0]
+    }
+
     private var window: MascotWindow!
     private var webView: MascotWebView!
     private var statusItem: NSStatusItem!
     private var awakeMenuItem: NSMenuItem!
     private var loginMenuItem: NSMenuItem?
+    private var trickMenuItem: NSMenuItem!
+    private var skinMenuItems: [NSMenuItem] = []
 
     private let power = PowerManager()
 
@@ -234,9 +258,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     private func buildStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.title = "✻"
             button.font = NSFont.systemFont(ofSize: 14)
-            button.toolTip = "Clawd — keeping your Mac awake"
         }
 
         let menu = NSMenu()
@@ -249,13 +271,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
 
         menu.addItem(NSMenuItem.separator())
 
+        // the skin switcher
+        let mascotMenu = NSMenu()
+        skinMenuItems = skins.map { skin in
+            let item = NSMenuItem(title: skin.title, action: #selector(switchSkin(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = skin.id
+            mascotMenu.addItem(item)
+            return item
+        }
+        let mascotItem = NSMenuItem(title: "Mascot", action: nil, keyEquivalent: "")
+        mascotItem.submenu = mascotMenu
+        menu.addItem(mascotItem)
+
         let hi = NSMenuItem(title: "Say hi", action: #selector(sayHi), keyEquivalent: "")
         hi.target = self
         menu.addItem(hi)
 
-        let coffee = NSMenuItem(title: "Coffee break", action: #selector(coffeeBreak), keyEquivalent: "")
-        coffee.target = self
-        menu.addItem(coffee)
+        trickMenuItem = NSMenuItem(title: "", action: #selector(playTrick), keyEquivalent: "")
+        trickMenuItem.target = self
+        menu.addItem(trickMenuItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -280,6 +315,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         menu.addItem(quitItem)
 
         statusItem.menu = menu
+        applySkinChrome()
+    }
+
+    /// Menu bar glyph, radio checkmarks, trick title — everything that
+    /// reflects the active skin natively.
+    private func applySkinChrome() {
+        let skin = activeSkin
+        statusItem.button?.title = skin.glyph
+        statusItem.button?.toolTip = power.isEnabled
+            ? "\(skin.title) — keeping your Mac awake"
+            : "\(skin.title) — on a break (display may sleep)"
+        trickMenuItem.title = skin.trickTitle
+        skinMenuItems.forEach { $0.state = ($0.representedObject as? String) == skin.id ? .on : .off }
     }
 
     // MARK: Menu actions
@@ -288,14 +336,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         if power.isEnabled { power.disable() } else { power.enable() }
         awakeMenuItem.state = power.isEnabled ? .on : .off
         statusItem.button?.alphaValue = power.isEnabled ? 1.0 : 0.45
-        statusItem.button?.toolTip = power.isEnabled
-            ? "Clawd — keeping your Mac awake"
-            : "Clawd — on a break (display may sleep)"
+        applySkinChrome()
         js("mascot.setAwake(\(power.isEnabled))")
     }
 
     @objc private func sayHi() { js("mascot.wave()") }
-    @objc private func coffeeBreak() { js("mascot.play('coffee')") }
+    @objc private func playTrick() { js("mascot.play('\(activeSkin.trick)')") }
+
+    @objc private func switchSkin(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String, id != activeSkin.id else { return }
+        UserDefaults.standard.set(id, forKey: skinKey)
+        js("mascot.setSkin('\(id)')")
+        applySkinChrome()
+    }
 
     @objc private func resetPosition() {
         isRepositioning = true
@@ -330,6 +383,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         pageReady = true
+        js("mascot.setSkin('\(activeSkin.id)', false)")
         js("mascot.setAwake(\(power.isEnabled))")
         startMousePolling()
     }
