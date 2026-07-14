@@ -24,14 +24,15 @@ Three skins, switchable live from the menu bar (each with its own signature anti
 | Clawd | Blossom | Cube |
 |:---:|:---:|:---:|
 | <img src="assets/clawd.png" width="200" alt="Clawd, the Claude Code mascot"> | <img src="assets/openai.png" width="200" alt="Pixel blossom inspired by the OpenAI mark"> | <img src="assets/cursor.png" width="200" alt="Pixel cube inspired by the Cursor mark"> |
-| The Claude Code mascot, faithful to the terminal art. Drinks coffee, thinks in sparkles. | Inspired by the OpenAI blossom. Does a full wind-up spin and blooms its petals. | Inspired by the Cursor cube. Flips through fake 3D and ghost-completes its own label (tab, tab). |
+| The Claude Code mascot, faithful to the terminal art. Drinks coffee, thinks in sparkles. | The OpenAI-inspired hexagonal ring itself, face included. Winds up for a full spin and bursts its knot apart (it reassembles). | Inspired by the Cursor cube. Flips through fake 3D and ghost-completes its own label (tab, tab). |
 
 ## Features
 
 - **Keeps the display awake** with a proper IOKit power assertion (`PreventUserIdleDisplaySleep`). Not a mouse jiggler: no fake input, nothing moves your cursor.
-- **Three switchable mascots**: authentic pixel Clawd (official orange, terminal-accurate 1:2 pixel proportions), a blossom, and a cube, all drawn on the same grid. Switching poofs one out and pops the next in.
+- **Three switchable mascots**: authentic pixel Clawd (official orange, terminal-accurate 1:2 pixel proportions), the blossom ring, and a cube, all drawn on the same grid. Switching poofs one out and pops the next in.
 - **Alive**: breathes, blinks, glances around, and its eyes follow your cursor.
-- **Idle antics per mascot**: everyone stretches and shuffles; Clawd drinks coffee and thinks in ✻ sparkles, the blossom spins and blooms, the cube 3D-flips and plays autocomplete with its own label.
+- **Idle antics per mascot**: everyone stretches and shuffles; Clawd drinks coffee and thinks in ✻ sparkles, the ring spins and bursts apart, the cube 3D-flips and plays autocomplete with its own label.
+- **A label with a bit**: the sign under the pet never sits still, typing through 250+ rotating statuses ("Reticulating…", "Achieving sentience…", "Basically Electron…") plus each mascot's own vocabulary.
 - **Interactive**: hover for a blush and a wave, click for a happy hop, drag it anywhere (it tilts in your hand and lands with a squash).
 - **Never in your way**: the window is click-through everywhere except Clawd's actual body, so it cannot block clicks on whatever is behind it.
 - **Menu bar control** (✻): pause keeping-awake (Clawd visibly dozes off), ask for a wave or a coffee, reset position, launch at login, quit.

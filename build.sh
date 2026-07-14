@@ -54,9 +54,9 @@ cat > "$CONTENTS/Info.plist" <<'PLIST'
     <key>CFBundleIdentifier</key>
     <string>io.github.maulmota.mascot</string>
     <key>CFBundleVersion</key>
-    <string>2.1.0</string>
+    <string>2.2.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.1.0</string>
+    <string>2.2.0</string>
     <key>CFBundleExecutable</key>
     <string>Mascot</string>
     <key>CFBundleIconFile</key>
