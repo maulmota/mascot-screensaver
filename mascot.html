@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>claude code mascot</title>
+<style>
+  /* ============================================================
+     Clawd — the Claude Code mascot, faithfully pixel-gridded.
+     Sprite geometry extracted from the official terminal art.
+     Grid: 1 unit horizontally = half a terminal column,
+           2 units vertically  = half a terminal row (cells are 1:2),
+     so a terminal "quadrant pixel" is a 1x2 rect here.
+     Body rgb(215,119,87) (official clawd_body), black eyes.
+     ============================================================ */
+  :root {
+    --clawd: #D77757;      /* official clawd_body */
+    --clawd-lite: #E8956B;
+    --ink: #0f0f0f;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: transparent;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none;
+  }
+
+  /* The pet itself (sprite + label) is the drag handle */
+  #stage {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    -webkit-app-region: drag;
+    text-align: center;
+  }
+
+  svg#sprite {
+    display: block;
+    width: 154px;    /* 22 units x 7px */
+    height: 154px;   /* 22 units x 7px (10 units of headroom above the head) */
+    shape-rendering: crispEdges;
+    filter: drop-shadow(0 0 9px rgba(215, 119, 87, 0.30));
+  }
+  svg#sprite * { transform-box: fill-box; }
+
+  /* ambient breathing — squash from the feet */
+  #breathe {
+    animation: breathe 3.8s ease-in-out infinite;
+    transform-origin: 50% 100%;
+  }
+  body.paused #breathe { animation-duration: 6.5s; }
+  @keyframes breathe {
+    0%, 100% { transform: scaleY(1); }
+    50%      { transform: scaleY(1.035); }
+  }
+
+  #tilt, #jump { transform-origin: 50% 100%; }
+
+  .label {
+    color: #8a8a8a;
+    font-size: 10px;
+    margin-top: 2px;
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.75);
+    white-space: nowrap;
+  }
+  .cursor {
+    display: inline-block;
+    width: 5px;
+    height: 10px;
+    background: #8a8a8a;
+    vertical-align: -1px;
+    margin-left: 2px;
+    animation: blink-cursor 1.1s steps(2) infinite;
+  }
+  @keyframes blink-cursor { 50% { opacity: 0; } }
+
+  /* coffee steam */
+  .steam {
+    opacity: 0;
+    animation: steam 1.7s ease-out infinite;
+  }
+  @keyframes steam {
+    0%   { opacity: 0;   transform: translateY(0); }
+    25%  { opacity: .85; }
+    100% { opacity: 0;   transform: translateY(-3.2px); }
+  }
+
+  /* macOS-style hover close button, floats in the headroom above Clawd */
+  #close-btn {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    margin-left: -9px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(40, 40, 40, 0.78);
+    color: rgba(235, 235, 235, 0.9);
+    text-align: center;
+    line-height: 17px;
+    font-size: 14px;
+    font-weight: 300;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 240ms ease, background 140ms ease;
+    -webkit-app-region: no-drag;
+    z-index: 100;
+    font-family: -apple-system, sans-serif;
+  }
+  body.show-close #close-btn { opacity: 1; pointer-events: auto; }
+  #close-btn:hover { background: rgba(255, 95, 86, 0.95); color: #fff; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <svg id="sprite" viewBox="-2 -10 22 22" xmlns="http://www.w3.org/2000/svg">
+      <!-- ground shadow (kept outside jump so it stays down while Clawd hops) -->
+      <ellipse id="shadow" cx="9" cy="10.9" rx="7.2" ry="0.55"
+               fill="#000" opacity="0.16" shape-rendering="auto"/>
+      <g id="jump">
+        <g id="tilt">
+          <g id="breathe">
+            <!-- ==== authentic Clawd silhouette ==== -->
+            <g id="body" fill="var(--clawd)">
+              <rect x="3" y="0" width="12" height="4"/>   <!-- head  ▐▛███▜▌ -->
+              <rect x="2" y="4" width="14" height="2"/>   <!-- torso -->
+              <rect x="3" y="6" width="12" height="2"/>   <!-- hips  -->
+            </g>
+            <g id="armL" fill="var(--clawd)"><rect x="1"  y="4" width="1" height="2"/></g>
+            <g id="armR" fill="var(--clawd)"><rect x="16" y="4" width="1" height="2"/></g>
+            <g id="feetL" fill="var(--clawd)">
+              <rect x="4" y="8" width="1" height="2"/>
+              <rect x="6" y="8" width="1" height="2"/>
+            </g>
+            <g id="feetR" fill="var(--clawd)">
+              <rect x="11" y="8" width="1" height="2"/>
+              <rect x="13" y="8" width="1" height="2"/>
+            </g>
+            <!-- blush, shows when petted -->
+            <rect id="blushL" x="3.3"  y="3.1" width="1.3" height="0.9"
+                  fill="var(--clawd-lite)" opacity="0"/>
+            <rect id="blushR" x="13.4" y="3.1" width="1.3" height="0.9"
+                  fill="var(--clawd-lite)" opacity="0"/>
+            <!-- eyes: black quadrant rects at (5,2) and (12,2) -->
+            <g id="eyeL"><rect class="pupil" x="5"  y="2" width="1" height="2" fill="var(--ink)"/></g>
+            <g id="eyeR"><rect class="pupil" x="12" y="2" width="1" height="2" fill="var(--ink)"/></g>
+          </g>
+        </g>
+      </g>
+      <!-- effects: poofs, sparkles, zzz, coffee -->
+      <g id="fx" shape-rendering="crispEdges"></g>
+    </svg>
+    <div class="label"><span id="labeltext">claude code</span><span class="cursor"></span></div>
+  </div>
+
+  <div id="close-btn" title="Quit mascot">&times;</div>
+
+<script>
+'use strict';
+/* ================================================================
+   Clawd behavior engine
+   Native bridge (Swift calls in):
+     mascot.setPointer(x, y)   — global cursor in window CSS coords
+     mascot.setAwake(bool)     — keep-awake assertion state
+     mascot.windowMoved(dx,dy) — live window-drag deltas
+     mascot.wave() / mascot.poke() / mascot.demo()
+   JS -> Swift: "quit" message, "hitRect" message ({body, close} rects)
+   ================================================================ */
+const $ = id => document.getElementById(id);
+const SVGNS = 'http://www.w3.org/2000/svg';
+const CLAWD = '#D77757', CLAWD_LITE = '#E8B4A0', GRAY = '#9a9a9a';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rand  = (a, b) => a + Math.random() * (b - a);
+const pick  = arr => arr[Math.floor(Math.random() * arr.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+const el = {
+  sprite: $('sprite'), jump: $('jump'), tilt: $('tilt'), breathe: $('breathe'),
+  shadow: $('shadow'), armL: $('armL'), armR: $('armR'),
+  feetL: $('feetL'), feetR: $('feetR'), eyeL: $('eyeL'), eyeR: $('eyeR'),
+  blushL: $('blushL'), blushR: $('blushR'), fx: $('fx'),
+  label: $('labeltext'), close: $('close-btn'), stage: $('stage'),
+};
+
+const state = {
+  awake: true,
+  busy: false,           // an event animation is running
+  ptr: { x: -9e4, y: -9e4, t: 0 },
+  overBody: false, near: false,
+  eye:  { lx: 0, ly: 0, rx: 0, ry: 0 },  // current per-eye offsets (units)
+  eyeT: { lx: 0, ly: 0, rx: 0, ry: 0 },  // targets
+  eyeOverride: null,     // event-driven gaze {lx,ly,rx,ry}, wins over cursor
+  tilt: 0, tiltT: 0, tiltPeak: 0, lastMove: 0,
+  wanderAt: 0,
+  waved: false,          // waved already during this hover
+  closeGraceT: 0,
+};
+const gaze = (x, y) => ({ lx: x, ly: y, rx: x, ry: y });
+
+/* ---------- geometry helpers (svg units <-> CSS px) ---------- */
+function svgScale() { return el.sprite.getBoundingClientRect().width / 22; }
+function unitToCss(ux, uy) {
+  const r = el.sprite.getBoundingClientRect();
+  const s = r.width / 22;
+  return { x: r.left + (ux + 2) * s, y: r.top + (uy + 10) * s };
+}
+const FACE = { x: 9, y: 3 };  // between the eyes
+
+/* ---------- tiny tween helper (WAAPI, settles inline style) ---------- */
+function move(node, to, ms, ease) {
+  const from = getComputedStyle(node).transform;
+  node.style.transform = to;
+  return node.animate(
+    [{ transform: from === 'none' ? 'translate(0,0)' : from }, { transform: to }],
+    { duration: ms, easing: ease || 'cubic-bezier(.35,1.3,.45,1)' }
+  ).finished.catch(() => {});
+}
+function rect(x, y, w, h, fill, opacity) {
+  const r = document.createElementNS(SVGNS, 'rect');
+  r.setAttribute('x', x); r.setAttribute('y', y);
+  r.setAttribute('width', w); r.setAttribute('height', h);
+  r.setAttribute('fill', fill);
+  if (opacity != null) r.setAttribute('opacity', opacity);
+  return r;
+}
+function glyph(x, y, str, size, fill) {
+  const t = document.createElementNS(SVGNS, 'text');
+  t.setAttribute('x', x); t.setAttribute('y', y);
+  t.setAttribute('font-size', size);
+  t.setAttribute('fill', fill);
+  t.setAttribute('font-family', 'ui-monospace, Menlo, monospace');
+  t.textContent = str;
+  return t;
+}
+
+/* ---------- blink ---------- */
+function eyeBase() { return document.body.classList.contains('paused') ? 'scaleY(0.5)' : 'scaleY(1)'; }
+function applyEyeBase() {
+  document.querySelectorAll('.pupil').forEach(p => {
+    p.style.transformOrigin = '50% 50%';
+    p.style.transform = eyeBase();
+  });
+}
+async function blink(hold) {
+  const base = eyeBase();
+  const anims = [...document.querySelectorAll('.pupil')].map(p =>
+    p.animate(
+      [{ transform: base }, { transform: 'scaleY(0.08)', offset: 0.4 },
+       { transform: 'scaleY(0.08)', offset: hold ? 0.7 : 0.5 }, { transform: base }],
+      { duration: hold ? 420 : 150, easing: 'ease-in-out' }
+    ).finished.catch(() => {})
+  );
+  await Promise.all(anims);
+}
+(async function blinkLoop() {
+  for (;;) {
+    await sleep(rand(2800, state.awake ? 7000 : 9500));
+    await blink();
+    if (Math.random() < 0.18) { await sleep(140); await blink(); }  // double blink
+  }
+})();
+
+/* ---------- eyes: spring toward target, cursor-aware ---------- */
+/* Authentic pose offsets (from the terminal art) — only the outer
+   eye shifts sideways: look-left L(-1,-1) R(0,-1), look-right L(0,-1) R(+1,-1)
+   (quadrant offsets; a quadrant is 2 units tall here) */
+const LOOK_LEFT  = { lx: -1, ly: -2, rx: 0, ry: -2 };
+const LOOK_RIGHT = { lx: 0, ly: -2, rx: 1, ry: -2 };
+let wanderGap = 5000, wanderRevert = 0;
+function idleWander(now) {
+  if (now > wanderRevert) state.eyeT = gaze(0, 0);   // glances are brief
+  if (now - state.wanderAt < wanderGap) return;
+  state.wanderAt = now;
+  wanderGap = rand(6000, 12000);
+  const g = pick(['left', 'right', 'up']);
+  state.eyeT =
+    g === 'left'  ? LOOK_LEFT :
+    g === 'right' ? LOOK_RIGHT : gaze(0, -1.6);
+  wanderRevert = now + rand(900, 1700);
+}
+
+/* ---------- perk / tilt / eye rAF loop ---------- */
+let perk = 1;
+(function loop() {
+  const now = performance.now();
+
+  // eye target: event override > live cursor > idle wander
+  if (state.eyeOverride) {
+    state.eyeT = state.eyeOverride;
+  } else if (now - state.ptr.t < 3500) {
+    const f = unitToCss(FACE.x, FACE.y);
+    const dx = state.ptr.x - f.x, dy = state.ptr.y - f.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 420) {
+      state.eyeT = gaze(
+        clamp(dx / 70, -1, 1) * 0.85,
+        clamp(dy / 90, -1, 1) * (dy < 0 ? 1.7 : 0.7)
+      );
+    } else idleWander(now);
+  } else idleWander(now);
+
+  for (const k of ['lx', 'ly', 'rx', 'ry']) {
+    state.eye[k] += (state.eyeT[k] - state.eye[k]) * 0.22;
+  }
+  el.eyeL.style.transform = `translate(${state.eye.lx.toFixed(3)}px, ${state.eye.ly.toFixed(3)}px)`;
+  el.eyeR.style.transform = `translate(${state.eye.rx.toFixed(3)}px, ${state.eye.ry.toFixed(3)}px)`;
+
+  // drag tilt springs back to rest
+  if (now - state.lastMove > 130) state.tiltT *= 0.82;
+  state.tilt += (state.tiltT - state.tilt) * 0.25;
+  if (Math.abs(state.tilt) < 0.05 && state.tiltPeak > 4) {
+    state.tiltPeak = 0;
+    landSquash();
+  }
+
+  // perk up when the cursor is close
+  const perkT = state.overBody ? 1.05 : state.near ? 1.02 : 1;
+  perk += (perkT - perk) * 0.15;
+
+  el.tilt.style.transform = `rotate(${state.tilt.toFixed(2)}deg) scale(${perk.toFixed(3)})`;
+  requestAnimationFrame(loop);
+})();
+
+/* ---------- label typing ---------- */
+let typeToken = 0;
+async function typeLabel(str) {
+  const my = ++typeToken;
+  while (el.label.textContent.length && my === typeToken) {
+    el.label.textContent = el.label.textContent.slice(0, -1);
+    await sleep(24);
+  }
+  for (const c of str) {
+    if (my !== typeToken) return;
+    el.label.textContent += c;
+    await sleep(48);
+  }
+}
+const HOME_LABEL = 'claude code';
+const BREAK_LABEL = 'on a break…';
+const restoreLabel = () => typeLabel(state.awake ? HOME_LABEL : BREAK_LABEL);
+const GERUNDS = ['Pondering…', 'Scheming…', 'Noodling…', 'Vibing…',
+                 'Percolating…', 'Ruminating…', 'Herding bits…', 'Keeping awake…'];
+
+/* ---------- particles ---------- */
+function poof(cx, cy) {
+  const colors = [CLAWD, CLAWD_LITE, '#bbb', CLAWD_LITE, CLAWD, '#bbb'];
+  for (let i = 0; i < 6; i++) {
+    const side = i % 2 ? 1 : -1;
+    const p = rect(cx + side * (1 + i * 0.55), cy, 0.85, 0.9, colors[i], 0.95);
+    el.fx.appendChild(p);
+    p.animate(
+      [{ transform: 'translate(0,0)', opacity: 0.95 },
+       { transform: `translate(${side * rand(1.2, 2.6)}px, ${-rand(0.8, 2.4)}px)`, opacity: 0 }],
+      { duration: rand(320, 460), easing: 'ease-out', delay: i * 18 }
+    ).finished.then(() => p.remove()).catch(() => p.remove());
+  }
+}
+async function sparkles() {
+  const spots = [[4.2, -3.8, 2.2], [10.6, -7.4, 1.7], [14.4, -2.8, 1.4]];
+  const made = [];
+  for (const [x, y, size] of spots) {
+    const s = glyph(x, y, '✻', size, CLAWD);
+    s.setAttribute('opacity', '0');
+    el.fx.appendChild(s); made.push(s);
+    s.animate(
+      [{ opacity: 0, transform: 'scale(.4)' },
+       { opacity: 1, transform: 'scale(1.1)', offset: 0.25 },
+       { opacity: 0.55, transform: 'scale(.9)', offset: 0.6 },
+       { opacity: 1, transform: 'scale(1)', offset: 0.8 },
+       { opacity: 0, transform: 'scale(.6)' }],
+      { duration: 2600, easing: 'ease-in-out' }
+    ).finished.then(() => s.remove()).catch(() => s.remove());
+    await sleep(300);
+  }
+  await sleep(2400);
+  made.forEach(s => s.remove());
+}
+
+/* ---------- moves ---------- */
+async function landSquash() {
+  await move(el.jump, 'translate(0,0) scale(1.06, 0.9)', 90, 'ease-out');
+  await move(el.jump, 'translate(0,0) scale(1,1)', 260, 'cubic-bezier(.34,1.56,.64,1)');
+}
+async function hop(height) {
+  const h = height || 4.4;
+  el.shadow.animate(
+    [{ transform: 'scale(1)', opacity: 0.16 },
+     { transform: 'scale(.72)', opacity: 0.09, offset: 0.5 },
+     { transform: 'scale(1)', opacity: 0.16 }],
+    { duration: 520, easing: 'ease-in-out' }).finished.catch(() => {});
+  await el.jump.animate(
+    [{ transform: 'translate(0,0) scale(1,1)' },
+     { transform: 'translate(0,0) scale(1.05,.88)', offset: 0.16 },
+     { transform: `translate(0,${-h}px) scale(.97,1.06)`, offset: 0.5 },
+     { transform: 'translate(0,0) scale(1.07,.86)', offset: 0.84 },
+     { transform: 'translate(0,0) scale(1,1)' }],
+    { duration: 520, easing: 'cubic-bezier(.4,0,.5,1)' }
+  ).finished.catch(() => {});
+  poof(9, 9.1);
+}
+async function armsUp(up, ms) {
+  // raised nubs sit beside the head, like the authentic arms-up pose
+  await Promise.all([
+    move(el.armL, up ? 'translate(1.4px,-3.8px)' : 'translate(0,0)', ms || 320),
+    move(el.armR, up ? 'translate(-1.4px,-3.8px)' : 'translate(0,0)', ms || 320),
+  ]);
+}
+async function waveArm() {
+  el.armR.style.transformOrigin = '50% 100%';
+  await move(el.armR, 'translate(-0.4px,-4.2px)', 260);
+  for (let i = 0; i < 3; i++) {
+    await move(el.armR, 'translate(-0.4px,-4.2px) rotate(24deg)', 150, 'ease-in-out');
+    await move(el.armR, 'translate(-0.4px,-4.2px) rotate(-18deg)', 150, 'ease-in-out');
+  }
+  await move(el.armR, 'translate(0,0)', 300);
+}
+function blush(on) {
+  [el.blushL, el.blushR].forEach(b => {
+    b.animate([{ opacity: b.getAttribute('opacity') || 0 }, { opacity: on ? 0.8 : 0 }],
+      { duration: 300, fill: 'none' }).finished.catch(() => {});
+    b.setAttribute('opacity', on ? 0.8 : 0);
+  });
+}
+
+/* ---------- idle events ---------- */
+async function evStretch() {
+  await armsUp(true, 420);
+  await move(el.jump, 'scaleY(1.07)', 380, 'ease-out');   // #breathe is owned by CSS
+  await sleep(420);
+  await move(el.jump, 'scaleY(1)', 240, 'ease-in');
+  await hop(3.2);
+  await armsUp(false, 300);
+}
+async function evShuffle() {
+  for (let i = 0; i < 4; i++) {
+    const left = i % 2 === 0;
+    const foot = left ? el.feetL : el.feetR;
+    const sway = move(el.jump, `translate(${left ? -0.5 : 0.5}px, 0)`, 220, 'ease-in-out');
+    await move(foot, 'translate(0,-1.1px)', 110, 'ease-out');
+    await move(foot, 'translate(0,0)', 110, 'ease-in');
+    await sway;
+  }
+  await move(el.jump, 'translate(0,0)', 200);
+}
+async function evThink() {
+  typeLabel(pick(GERUNDS));
+  state.eyeOverride = gaze(0.4, -1.7);
+  await sparkles();
+  state.eyeOverride = null;
+  restoreLabel();
+}
+async function evCoffee() {
+  typeLabel('Caffeinating…');
+  // pixel mug slides in at Clawd's right
+  const mug = document.createElementNS(SVGNS, 'g');
+  mug.appendChild(rect(0, 0, 2, 3, '#efe7db'));
+  mug.appendChild(rect(0.25, 0.5, 1.5, 0.9, '#6b4433'));   // coffee
+  mug.appendChild(rect(2.05, 0.7, 0.4, 0.5, '#efe7db'));   // handle
+  mug.appendChild(rect(2.05, 1.9, 0.4, 0.5, '#efe7db'));
+  mug.appendChild(rect(2.3, 0.7, 0.15, 1.7, '#efe7db'));
+  mug.appendChild(rect(0, 3, 2, 0.45, '#d8cfc0'));         // base
+  for (let i = 0; i < 3; i++) {
+    const s = rect(0.35 + i * 0.55, -0.9 - i * 0.6, 0.32, 0.64, '#c9c9c9');
+    s.setAttribute('class', 'steam');
+    s.style.animationDelay = `${i * 0.45}s`;
+    mug.appendChild(s);
+  }
+  mug.style.opacity = '0';
+  mug.style.transform = 'translate(17.2px, 6.4px)';
+  el.fx.appendChild(mug);
+  mug.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, fill: 'none' })
+     .finished.catch(() => {});
+  mug.style.opacity = '1';
+
+  state.eyeOverride = LOOK_RIGHT;            // notice the coffee
+  await sleep(800);
+  // reach + lift the mug toward the face, take a sip
+  const reach = move(el.armR, 'translate(-0.3px,-1.2px)', 260);
+  await move(mug, 'translate(14.4px, 2.2px) rotate(-14deg)', 480, 'ease-in-out');
+  await reach;
+  state.eyeOverride = gaze(0.5, -0.2);
+  await blink(true);                          // happy closed-eye sip
+  await sleep(350);
+  await move(mug, 'translate(17.2px, 6.4px) rotate(0deg)', 460, 'ease-in-out');
+  await move(el.armR, 'translate(0,0)', 240);
+  state.eyeOverride = null;
+  await sleep(900);
+  mug.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, fill: 'none' })
+     .finished.then(() => mug.remove()).catch(() => mug.remove());
+  restoreLabel();
+}
+/* authentic look-left / look-right glances (snappy, terminal-style) */
+async function evGlance() {
+  state.eyeOverride = Math.random() < 0.5 ? LOOK_LEFT : LOOK_RIGHT;
+  await sleep(rand(700, 1200));
+  state.eyeOverride = null;
+}
+
+const EVENTS = [
+  [evGlance, 4], [evShuffle, 3], [evStretch, 2], [evThink, 2], [evCoffee, 1.5],
+];
+function pickEvent() {
+  const total = EVENTS.reduce((s, [, w]) => s + w, 0);
+  let roll = Math.random() * total;
+  for (const [fn, w] of EVENTS) { roll -= w; if (roll <= 0) return fn; }
+  return evGlance;
+}
+async function runEvent(fn) {
+  if (state.busy) return;
+  state.busy = true;
+  try { await fn(); } finally { state.busy = false; }
+}
+(async function scheduler() {
+  await sleep(3500);
+  for (;;) {
+    await sleep(rand(16000, 45000));
+    if (!state.awake || state.busy) continue;
+    await runEvent(pickEvent());
+  }
+})();
+
+/* ---------- sleep / wake (keep-awake assertion state) ---------- */
+let zzzTimer = null;
+function setAwake(on) {
+  if (state.awake === on) return;
+  state.awake = on;
+  document.body.classList.toggle('paused', !on);
+  applyEyeBase();
+  if (!on) {
+    typeLabel(BREAK_LABEL);
+    zzzTimer = setInterval(() => {
+      const z = glyph(13.2 + rand(-0.5, 0.5), -1.5, 'z', rand(1.6, 2.2), GRAY);
+      z.setAttribute('opacity', '0');
+      el.fx.appendChild(z);
+      z.animate(
+        [{ opacity: 0, transform: 'translate(0,0)' },
+         { opacity: 0.85, offset: 0.25 },
+         { opacity: 0, transform: 'translate(1.4px,-5.2px)' }],
+        { duration: 2600, easing: 'ease-out' }
+      ).finished.then(() => z.remove()).catch(() => z.remove());
+    }, 2200);
+  } else {
+    clearInterval(zzzTimer); zzzTimer = null;
+    typeLabel(HOME_LABEL);
+    runEvent(evStretch);   // good morning
+  }
+}
+
+/* ---------- pointer awareness (fed by Swift, or mouse in a browser) ---------- */
+let hoverTimer = null;
+function setPointer(x, y) {
+  state.ptr = { x, y, t: performance.now() };
+  const f = unitToCss(FACE.x, FACE.y);
+  state.near = Math.hypot(x - f.x, y - f.y) < 190;
+
+  const b = zones.body, c = zones.close;
+  const inBody  = b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+  const inClose = c && x >= c.x - 6 && x <= c.x + c.w + 6 && y >= c.y - 6 && y <= c.y + c.h + 6;
+
+  if (inBody) state.closeGraceT = performance.now();
+  const showClose = inBody || (inClose && performance.now() - state.closeGraceT < 900);
+  document.body.classList.toggle('show-close', showClose);
+
+  if (inBody && !state.overBody) {          // hover begins
+    blush(true);
+    if (!state.waved) {
+      hoverTimer = setTimeout(() => {
+        if (state.overBody && state.awake) { state.waved = true; runEvent(waveArm); }
+      }, 550);
+    }
+  } else if (!inBody && state.overBody) {   // hover ends
+    blush(false);
+    clearTimeout(hoverTimer);
+    setTimeout(() => { state.waved = false; }, 4000);
+  }
+  state.overBody = inBody;
+}
+
+/* ---------- hit zones, reported to Swift ---------- */
+const zones = { body: null, close: null };
+function computeZones() {
+  const s = svgScale();
+  const svgR = el.sprite.getBoundingClientRect();
+  const labelR = el.label.parentElement.getBoundingClientRect();
+  // body ink spans units x1..x17, y0..y10
+  const left = svgR.left + 3 * s, right = svgR.left + 19 * s;
+  const top  = svgR.top + 10 * s;
+  const x = Math.min(left, labelR.left) - 4;
+  const w = Math.max(right, labelR.right) - x + 4;
+  zones.body = { x, y: top - 4, w, h: labelR.bottom - top + 8 };
+  const cR = el.close.getBoundingClientRect();
+  zones.close = { x: cR.left, y: cR.top, w: cR.width, h: cR.height };
+  if (window.webkit?.messageHandlers?.hitRect) {
+    webkit.messageHandlers.hitRect.postMessage(JSON.stringify(zones));
+  }
+}
+window.addEventListener('load', () => requestAnimationFrame(computeZones));
+window.addEventListener('resize', computeZones);
+
+/* ---------- public bridge ---------- */
+window.mascot = {
+  setPointer,
+  setAwake,
+  windowMoved(dx, dy) {
+    state.tiltT = clamp(-dx * 1.35, -13, 13);
+    state.tiltPeak = Math.max(state.tiltPeak, Math.abs(state.tiltT));
+    state.lastMove = performance.now();
+  },
+  wave() { runEvent(waveArm); },
+  poke() {
+    if (state.busy) { blush(true); setTimeout(() => !state.overBody && blush(false), 900); return; }
+    runEvent(async () => {
+      blush(true);
+      typeLabel(pick(['boing!', 'hehe', '✻!', ':)']));
+      await hop(4.8);
+      await sleep(500);
+      if (!state.overBody) blush(false);
+      restoreLabel();
+    });
+  },
+  async demo() {  // run through every state (for testing)
+    await runEvent(waveArm);
+    this.poke(); await sleep(1600);
+    await runEvent(evShuffle);
+    await runEvent(evThink);
+    await runEvent(evCoffee);
+    this.setAwake(false); await sleep(5200);
+    this.setAwake(true);
+  },
+  // direct access to the idle events (testing / menu tricks)
+  play(name) {
+    const ev = { glance: evGlance, shuffle: evShuffle, stretch: evStretch,
+                 think: evThink, coffee: evCoffee }[name];
+    if (ev) runEvent(ev);
+  },
+};
+
+/* ---------- close button + browser-preview fallbacks ---------- */
+el.close.addEventListener('click', () => {
+  if (window.webkit?.messageHandlers?.quit) {
+    webkit.messageHandlers.quit.postMessage('quit');
+  }
+});
+document.addEventListener('contextmenu', e => e.preventDefault());
+if (!window.webkit?.messageHandlers?.quit) {
+  // running in a normal browser: emulate the Swift feeds
+  window.addEventListener('mousemove', e => setPointer(e.clientX, e.clientY));
+  window.addEventListener('click', e => { if (e.target !== el.close) mascot.poke(); });
+  // ?pose=coffee|think|stretch|shuffle|sleep|wave — for docs screenshots
+  const pose = new URLSearchParams(location.search).get('pose');
+  if (pose === 'sleep') setTimeout(() => setAwake(false), 400);
+  else if (pose === 'wave') setTimeout(() => mascot.wave(), 400);
+  else if (pose) setTimeout(() => mascot.play(pose), 400);
+}
+</script>
+</body>
+</html>
