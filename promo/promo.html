@@ -80,11 +80,12 @@
   #menu .row .check { margin-left: auto; opacity: 0; font-size: 1.9vh; }
   #menu .row.active .check { opacity: .9; }
   #hl {
-    position: absolute; left: .8vh; right: .8vh; height: 4.45vh;
+    position: absolute; left: .8vh; right: .8vh;
     background: rgba(255,255,255,.12); border-radius: 1vh;
-    transition: top 300ms cubic-bezier(.3,.8,.3,1);
+    transition: top 240ms cubic-bezier(.3,.8,.3,1);
     z-index: 1;
   }
+  #menu .row { line-height: 1.2; }
 
   /* ---- the pet (real engine in an iframe) ---- */
   #rig {
@@ -120,15 +121,18 @@
     text-align: center; z-index: 20;
   }
   #cap h2 {
-    font-size: 7.4vh; font-weight: 760; letter-spacing: -0.022em;
-    color: #F2F3F7; line-height: 1.06;
+    font-family: ui-serif, "New York", Georgia, serif;
+    font-size: 7vh; font-weight: 700; letter-spacing: -0.008em;
+    color: #F2F3F7; line-height: 1.08;
   }
   #cap p {
-    margin-top: 1.6vh; font-size: 2.9vh; font-weight: 460;
-    color: rgba(235,236,240,.62); letter-spacing: -0.006em;
+    margin-top: 1.8vh;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 2.5vh; font-weight: 420;
+    color: rgba(235,236,240,.60); letter-spacing: .01em;
   }
-  .capIn  { animation: capIn 640ms cubic-bezier(.2,.7,.2,1) both; }
-  .capOut { animation: capOut 420ms ease both; }
+  .capIn  { animation: capIn 430ms cubic-bezier(.2,.7,.2,1) both; }
+  .capOut { animation: capOut 260ms ease both; }
   @keyframes capIn  { from { opacity: 0; transform: translateY(2.2vh); filter: blur(6px); }
                       to   { opacity: 1; transform: translateY(0);     filter: blur(0); } }
   @keyframes capOut { from { opacity: 1; } to { opacity: 0; filter: blur(4px); } }
@@ -141,8 +145,14 @@
     opacity: 0;
   }
   #endcard img { width: 15vh; height: 15vh; border-radius: 3.4vh; }
-  #endcard h1 { font-size: 8.6vh; font-weight: 780; letter-spacing: -0.025em; color: #F4F5F8; }
-  #endcard .tag { font-size: 3.1vh; color: rgba(235,236,240,.66); margin-top: -1.6vh; }
+  #endcard h1 {
+    font-family: ui-serif, "New York", Georgia, serif;
+    font-size: 8.2vh; font-weight: 700; letter-spacing: -0.01em; color: #F4F5F8;
+  }
+  #endcard .tag {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 2.7vh; color: rgba(235,236,240,.66); margin-top: -1.4vh;
+  }
   #endcard .pill {
     margin-top: 2vh;
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -152,7 +162,10 @@
     padding: 1.7vh 3vh; border-radius: 100vh;
   }
   #endcard .pill .dollar { color: rgba(235,236,240,.45); margin-right: 1.2vh; }
-  #endcard .foot { font-size: 2.1vh; color: rgba(235,236,240,.42); margin-top: 1.4vh; letter-spacing: .01em; }
+  #endcard .foot {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 1.9vh; color: rgba(235,236,240,.42); margin-top: 1.4vh; letter-spacing: .01em;
+  }
   .cardIn { animation: cardIn 900ms cubic-bezier(.2,.7,.2,1) both; }
   @keyframes cardIn { from { opacity: 0; transform: scale(.965) translateY(1.6vh); }
                       to   { opacity: 1; transform: scale(1) translateY(0); } }
@@ -272,6 +285,15 @@ const cursorTo = (x, y, ms, ease = 'smooth') => {
   return tween(ms, ease, k => setCursor(fx + (x - fx) * k, fy + (y - fy) * k));
 };
 
+/* wait for the engine to finish its current event (bounded) */
+async function engineIdle(maxMs = 4000) {
+  const t0 = performance.now();
+  while (performance.now() - t0 < maxMs) {
+    try { if (!pet.contentWindow.eval('state.busy')) return; } catch (e) { return; }
+    await sleep(90);
+  }
+}
+
 /* pet-relative helpers (fractions of the rig box) */
 const petPoint = (fx, fy) => ({ x: rigPos.x + PET_W * rigScale * fx, y: rigPos.y + PET_H * rigScale * fy });
 
@@ -283,7 +305,7 @@ async function say(head, sub, holdMs) {
 }
 async function shutUp() {
   [...cap.children].forEach(c => c.classList.replace('capIn', 'capOut'));
-  await sleep(430);
+  await sleep(270);
   cap.innerHTML = '';
 }
 
@@ -300,19 +322,24 @@ const GLYPHS = { clawd: '✻', codex: '☁', cursor: '▮' };
 async function switchViaMenu(from, to) {
   const menu = $('menu');
   const rows = [...menu.querySelectorAll('.row')];
-  const idx = s => rows.findIndex(r => r.dataset.skin === s);
+  const row = s => rows.find(r => r.dataset.skin === s);
+  const placeHl = s => {
+    const r = row(s);
+    $('hl').style.top = `${r.offsetTop}px`;
+    $('hl').style.height = `${r.offsetHeight}px`;
+  };
   rows.forEach(r => r.classList.toggle('active', r.dataset.skin === from));
-  $('hl').style.top = `${0.8 + idx(from) * 4.45}vh`;
+  placeHl(from);
   menu.classList.add('show');
-  await sleep(650);
-  $('hl').style.top = `${0.8 + idx(to) * 4.45}vh`;
-  await sleep(450);
+  await sleep(480);
+  placeHl(to);
+  await sleep(340);
   rows.forEach(r => r.classList.toggle('active', r.dataset.skin === to));
-  await sleep(350);
+  await sleep(260);
   menu.classList.remove('show');
   m().setSkin(to);
   setAccent(to);
-  await sleep(300);
+  await sleep(260);
   $('mbGlyph').textContent = GLYPHS[to];
 }
 
@@ -338,10 +365,10 @@ async function dragPet(path, ms) {
 
 /* ---------- scenes ---------- */
 async function scColdOpen() {
-  await sleep(700);
+  await sleep(450);
   $('menubar').style.opacity = 1;
-  await say('Three hours into an agent run…', '', 2450);
-  await say('…and macOS locks your screen.', '', 2450);
+  await say('Three hours into an agent run…', '', 1300);
+  await say('…and macOS locks your screen.', '', 1400);
 }
 
 async function scReveal() {
@@ -351,21 +378,20 @@ async function scReveal() {
                { transform: `translate(${rigPos.x}px,${rigPos.y}px) scale(1.06)`, opacity: 1, offset: .7 },
                { transform: `translate(${rigPos.x}px,${rigPos.y}px) scale(1)`, opacity: 1 }],
               { duration: 700, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
-  await sleep(450);
+  await sleep(350);
   if (m()) m().poke();
-  await say('Meet Mascot.', 'A tiny desktop pet that keeps your Mac awake.', 3600);
+  await say('Meet Mascot.', 'A tiny desktop pet that keeps your Mac awake.', 2100);
 }
 
 async function scAlive() {
   say('It knows you’re there.', 'Eyes on your cursor, always.');
   const a = petPoint(1.35, 0.55);
   setCursor(a.x, a.y); cursorVisible(true);
-  await cursorTo(petPoint(1.18, 0.28).x, petPoint(1.18, 0.28).y, 900, 'out');
-  await cursorTo(petPoint(-0.2, 0.35).x, petPoint(-0.2, 0.35).y, 1500, 'inout');
-  await cursorTo(petPoint(-0.08, 0.72).x, petPoint(-0.08, 0.72).y, 900, 'inout');
+  await cursorTo(petPoint(1.15, 0.25).x, petPoint(1.15, 0.25).y, 500, 'out');
+  await cursorTo(petPoint(-0.15, 0.4).x, petPoint(-0.15, 0.4).y, 850, 'inout');
   const c = petPoint(0.5, 0.62);
-  await cursorTo(c.x, c.y, 800, 'inout');       // onto the body: blush + wave
-  await sleep(2500);
+  await cursorTo(c.x, c.y, 500, 'inout');       // onto the body: blush + wave
+  await sleep(1250);
   await shutUp();
 }
 
@@ -375,56 +401,58 @@ async function scDrag() {
   const grip = petPoint(0.5, 0.62);
   if (cursor.x < 0) setCursor(grip.x + 260, grip.y + 140);
   cursorVisible(true);
-  await cursorTo(grip.x, grip.y, 550, 'out');
+  await cursorTo(grip.x, grip.y, 380, 'out');
   await clickPulse();
   await dragPet([
-    { fx: 0.30, fy: 0.52 },
-    { fx: 0.68, fy: 0.44, ease: 'inout' },
+    { fx: 0.31, fy: 0.52 },
+    { fx: 0.67, fy: 0.44, ease: 'inout' },
     { fx: 0.50, fy: 0.60, ease: 'out' },
-  ], 3300);
+  ], 1900);
   // settle home
   const from = { ...rigPos };
-  await tween(600, 'inout', k => {
+  await tween(420, 'inout', k => {
     setRig(from.x + (rigHome.x - from.x) * k, from.y + (rigHome.y - from.y) * k);
   });
-  await cursorTo(petPoint(1.4, 0.3).x, petPoint(1.4, 0.3).y, 700, 'inout');
+  await cursorTo(petPoint(1.4, 0.3).x, petPoint(1.4, 0.3).y, 450, 'inout');
   cursorVisible(false);
-  await sleep(700);
+  await sleep(280);
   await shutUp();
 }
 
 async function scCoffee() {
   say('It caffeinates.', 'Somebody has to stay up.');
   if (m()) m().play('coffee');
-  await sleep(6600);
+  await sleep(3900);
   await shutUp();
 }
 
 async function scSwitch() {
   say('Three mascots.', 'Switch from the menu bar.');
-  await sleep(500);
   await switchViaMenu('clawd', 'codex');
-  await sleep(1500);
+  await sleep(500);
   await shutUp();
 }
 
 async function scCodex() {
   say('Codex daydreams…', '…then rains a little code.');
+  await engineIdle();
   if (m()) m().play('float');
-  await sleep(4600);
+  await sleep(3200);
+  await engineIdle(1500);
   if (m()) m().play('rain');
-  await sleep(3400);
+  await sleep(1400);          // drops keep falling into the next scene
   await shutUp();
 }
 
 async function scCube() {
   await switchViaMenu('codex', 'cursor');
   say('The cube ships completions.', 'Tab. Tab.');
-  await sleep(600);
+  await engineIdle(2000);
   if (m()) m().play('flip');
-  await sleep(1800);
+  await sleep(1300);
+  await engineIdle(1200);
   if (m()) m().play('tabtab');
-  await sleep(4600);
+  await sleep(3000);
   await shutUp();
 }
 

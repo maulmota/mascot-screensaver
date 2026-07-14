@@ -795,7 +795,7 @@ async function evCoffee() {
   mug.style.opacity = '1';
 
   state.eyeOverride = LOOK_RIGHT;            // notice the coffee
-  await sleep(800);
+  await sleep(600);
   const reach = move(el.armR, 'translate(-0.3px,-1.2px)', 260);
   await move(mug, 'translate(14.4px, 2.2px) rotate(-14deg)', 480, 'ease-in-out');
   await reach;
@@ -805,7 +805,7 @@ async function evCoffee() {
   await move(mug, 'translate(17.2px, 6.4px) rotate(0deg)', 460, 'ease-in-out');
   await move(el.armR, 'translate(0,0)', 240);
   state.eyeOverride = null;
-  await sleep(900);
+  await sleep(500);
   mug.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, fill: 'none' })
      .finished.then(() => mug.remove()).catch(() => mug.remove());
   restoreLabel();
@@ -858,12 +858,11 @@ async function evFloat() {
      { transform: 'scale(.62)', opacity: 0.08, offset: 0.25 },
      { transform: 'scale(.62)', opacity: 0.08, offset: 0.78 },
      { transform: 'scale(1)', opacity: 0.16 }],
-    { duration: 3900, easing: 'ease-in-out' }).finished.catch(() => {});
-  await move(el.jump, 'translate(0,-2.9px)', 950, 'ease-in-out');
-  await move(el.jump, 'translate(0,-2.2px)', 700, 'ease-in-out');
-  await move(el.jump, 'translate(0,-2.9px)', 700, 'ease-in-out');
-  await move(el.jump, 'translate(0,-2.2px)', 700, 'ease-in-out');
-  await move(el.jump, 'translate(0,0)', 650, 'cubic-bezier(.34,1.3,.5,1)');
+    { duration: 3200, easing: 'ease-in-out' }).finished.catch(() => {});
+  await move(el.jump, 'translate(0,-2.9px)', 850, 'ease-in-out');
+  await move(el.jump, 'translate(0,-2.2px)', 650, 'ease-in-out');
+  await move(el.jump, 'translate(0,-2.9px)', 650, 'ease-in-out');
+  await move(el.jump, 'translate(0,0)', 600, 'cubic-bezier(.34,1.3,.5,1)');
   await landSquash();
   restoreLabel();
 }
@@ -913,7 +912,7 @@ async function evFlip() {
 async function evTabTab() {
   await typeLabel('const nap = ');
   el.ghost.textContent = 'prevent()';          // ghost completion
-  await sleep(1000);
+  await sleep(750);
   for (let i = 0; i < 2; i++) {                // tab, tab
     await move(el.jump, 'translate(0,1px)', 80, 'ease-out');
     await move(el.jump, 'translate(0,0)', 90, 'ease-out');
@@ -922,7 +921,7 @@ async function evTabTab() {
   el.label.textContent += el.ghost.textContent; // accepted!
   el.ghost.textContent = '';
   blink(true);
-  await sleep(1400);
+  await sleep(950);
   restoreLabel();
 }
 
