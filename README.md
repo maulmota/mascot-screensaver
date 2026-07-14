@@ -44,6 +44,20 @@ Three skins, switchable live from the menu bar (each with its own signature anti
 
 ## Install
 
+### Homebrew (easiest)
+
+```bash
+brew install --cask maulmota/tap/mascot
+```
+
+The app is ad-hoc signed (not notarized), so on first launch either right-click `/Applications/Mascot.app` → Open, or clear the quarantine flag:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Mascot.app
+```
+
+Upgrade later with `brew upgrade --cask mascot`. The cask lives in [maulmota/homebrew-tap](https://github.com/maulmota/homebrew-tap).
+
 ### Download
 
 1. Download `Mascot.app.zip` from the [latest release](../../releases/latest) and unzip it.
@@ -105,6 +119,7 @@ Clawd's sprite geometry and the official body color, `rgb(215,119,87)`, were rec
 - `./start.command` runs the Swift source directly, no build step, for quick iteration.
 - Art and behavior tuning live in `mascot.html`: each skin is a plain-data entry in the `SKINS` table (geometry, colors, label vocabulary, event weights). Adding a fourth mascot is mostly drawing rects.
 - Open `mascot.html` in a browser to preview the pet; mouse movement and clicks stand in for the native cursor feed. `?skin=clawd|openai|cursor` selects a mascot and `?pose=coffee|think|spin|bloom|flip|tabtab|stretch|shuffle|sleep|wave` triggers a pose for screenshots.
+- Releasing: tag a GitHub release with a `Mascot.app.zip` asset, then update the Homebrew cask with [`bump-mascot.sh`](https://github.com/maulmota/homebrew-tap/blob/main/bump-mascot.sh) in the tap repo.
 
 ## Disclaimer
 
