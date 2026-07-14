@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mascot — promo stage</title>
+<style>
+  /* ============================================================
+     Cinematic promo stage for Mascot. Drives the real mascot
+     engine (../mascot.html) in an iframe through a scripted
+     timeline: reveal, cursor play, drag physics, emotes, skin
+     switching, end card. Height-relative units so both 16:9 and
+     1:1 renders share one layout.
+
+     ?scene=reveal|alive|drag|coffee|switch|codex|cube|end
+       loops a single beat for tuning; default runs the full film.
+     ============================================================ */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100vw; height: 100vh; overflow: hidden;
+    background: #0f1013;
+    font-family: -apple-system, "SF Pro Display", ui-sans-serif, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  /* ---- backdrop ---- */
+  #glow {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(58vh 46vh at 50% 64%, var(--accent, rgba(215,119,87,.16)), transparent 70%);
+    transition: background 1400ms ease;
+  }
+  #vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(120vh 90vh at 50% 46%, transparent 55%, rgba(0,0,0,.5) 100%);
+  }
+  #floorline {
+    position: absolute; left: 50%; top: 87.5vh; width: 72vh; height: 1px;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent);
+  }
+
+  /* ---- stylized menu bar (it's a menu bar app, after all) ---- */
+  #menubar {
+    position: absolute; top: 0; left: 0; right: 0; height: 4.4vh;
+    background: rgba(255,255,255,.045);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(255,255,255,.05);
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 2.6vh; padding: 0 3vh;
+    color: rgba(235,236,240,.82);
+    font-size: 2.1vh; letter-spacing: .02em;
+    opacity: 0; transition: opacity 800ms ease;
+  }
+  #mbGlyph { font-size: 2.3vh; width: 2.8vh; text-align: center; transition: opacity .3s; }
+  #mbClock { font-variant-numeric: tabular-nums; opacity: .75; }
+
+  /* ---- switcher dropdown (stylized) ---- */
+  #menu {
+    position: absolute; top: 5vh; right: 3vh; width: 26vh;
+    background: rgba(30,31,36,.92);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 1.6vh;
+    padding: .8vh;
+    box-shadow: 0 2.4vh 6vh rgba(0,0,0,.5);
+    opacity: 0; transform: translateY(-1.2vh) scale(.98);
+    transform-origin: top right;
+    transition: opacity 260ms ease, transform 260ms cubic-bezier(.2,.9,.3,1.2);
+    z-index: 30;
+  }
+  #menu.show { opacity: 1; transform: translateY(0) scale(1); }
+  #menu .row {
+    display: flex; align-items: center; gap: 1.4vh;
+    padding: 1.15vh 1.5vh; border-radius: 1vh;
+    color: rgba(235,236,240,.92); font-size: 2.15vh;
+    position: relative; z-index: 2;
+  }
+  #menu .row .g { width: 2.6vh; text-align: center; }
+  #menu .row .check { margin-left: auto; opacity: 0; font-size: 1.9vh; }
+  #menu .row.active .check { opacity: .9; }
+  #hl {
+    position: absolute; left: .8vh; right: .8vh; height: 4.45vh;
+    background: rgba(255,255,255,.12); border-radius: 1vh;
+    transition: top 300ms cubic-bezier(.3,.8,.3,1);
+    z-index: 1;
+  }
+
+  /* ---- the pet (real engine in an iframe) ---- */
+  #rig {
+    position: absolute; z-index: 10;
+    opacity: 0;
+    will-change: transform;
+  }
+  #rig iframe {
+    border: 0; background: transparent;
+    width: 545px; height: 660px;
+    pointer-events: none;
+    transform-origin: top left;
+  }
+
+  /* ---- fake cursor ---- */
+  #cursor {
+    position: absolute; z-index: 40; width: 3.4vh; height: 4.6vh;
+    opacity: 0; transition: opacity 400ms ease;
+    filter: drop-shadow(0 .4vh 1vh rgba(0,0,0,.55));
+    will-change: transform;
+  }
+  #click-ring {
+    position: absolute; z-index: 39; width: 6vh; height: 6vh;
+    border: .35vh solid rgba(255,255,255,.75); border-radius: 50%;
+    opacity: 0; transform: scale(.3);
+    pointer-events: none;
+  }
+
+  /* ---- captions ---- */
+  #cap {
+    position: absolute; top: 11vh; left: 50%; width: 86vw;
+    transform: translateX(-50%);
+    text-align: center; z-index: 20;
+  }
+  #cap h2 {
+    font-size: 7.4vh; font-weight: 760; letter-spacing: -0.022em;
+    color: #F2F3F7; line-height: 1.06;
+  }
+  #cap p {
+    margin-top: 1.6vh; font-size: 2.9vh; font-weight: 460;
+    color: rgba(235,236,240,.62); letter-spacing: -0.006em;
+  }
+  .capIn  { animation: capIn 640ms cubic-bezier(.2,.7,.2,1) both; }
+  .capOut { animation: capOut 420ms ease both; }
+  @keyframes capIn  { from { opacity: 0; transform: translateY(2.2vh); filter: blur(6px); }
+                      to   { opacity: 1; transform: translateY(0);     filter: blur(0); } }
+  @keyframes capOut { from { opacity: 1; } to { opacity: 0; filter: blur(4px); } }
+
+  /* ---- end card ---- */
+  #endcard {
+    position: absolute; inset: 0; z-index: 25;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2.6vh; text-align: center;
+    opacity: 0;
+  }
+  #endcard img { width: 15vh; height: 15vh; border-radius: 3.4vh; }
+  #endcard h1 { font-size: 8.6vh; font-weight: 780; letter-spacing: -0.025em; color: #F4F5F8; }
+  #endcard .tag { font-size: 3.1vh; color: rgba(235,236,240,.66); margin-top: -1.6vh; }
+  #endcard .pill {
+    margin-top: 2vh;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 2.5vh; color: #EDEEF4;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.13);
+    padding: 1.7vh 3vh; border-radius: 100vh;
+  }
+  #endcard .pill .dollar { color: rgba(235,236,240,.45); margin-right: 1.2vh; }
+  #endcard .foot { font-size: 2.1vh; color: rgba(235,236,240,.42); margin-top: 1.4vh; letter-spacing: .01em; }
+  .cardIn { animation: cardIn 900ms cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes cardIn { from { opacity: 0; transform: scale(.965) translateY(1.6vh); }
+                      to   { opacity: 1; transform: scale(1) translateY(0); } }
+</style>
+</head>
+<body>
+  <div id="glow"></div>
+  <div id="vignette"></div>
+  <div id="floorline"></div>
+
+  <div id="menubar">
+    <span id="mbGlyph">✻</span>
+    <span id="mbClock">Tue 9:41 AM</span>
+  </div>
+
+  <div id="menu">
+    <div id="hl"></div>
+    <div class="row" data-skin="clawd"><span class="g">✻</span>Clawd<span class="check">✓</span></div>
+    <div class="row" data-skin="codex"><span class="g">☁</span>Codex<span class="check">✓</span></div>
+    <div class="row" data-skin="cursor"><span class="g">▮</span>Cursor<span class="check">✓</span></div>
+  </div>
+
+  <div id="rig">
+    <iframe id="pet" src="../mascot.html?skin=clawd&zoom=3.2&nochrome=1&noidle=1"></iframe>
+  </div>
+
+  <svg id="cursor" viewBox="0 0 13 19" xmlns="http://www.w3.org/2000/svg">
+    <path d="M1 1 L1 15.6 L4.6 12.4 L7 17.8 L9.6 16.6 L7.2 11.3 L12 11 Z"
+          fill="#fff" stroke="#26262b" stroke-width="1.1" stroke-linejoin="round"/>
+  </svg>
+  <div id="click-ring"></div>
+
+  <div id="cap"></div>
+
+  <div id="endcard">
+    <img src="../assets/icon.png" alt="Mascot icon">
+    <h1>Mascot</h1>
+    <div class="tag">Keeps your Mac awake. Adorably.</div>
+    <div class="pill"><span class="dollar">$</span>brew install --cask maulmota/tap/mascot</div>
+    <div class="foot">Free &amp; open source · macOS 12+ · github.com/maulmota/mascot-screensaver</div>
+  </div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const stage = () => ({ w: innerWidth, h: innerHeight });
+
+/* ---------- pet rig ---------- */
+const PET_W = 545, PET_H = 660, PET_ZOOM = 3.2;
+const rig = $('rig'), pet = $('pet');
+let rigScale = 1;
+let rigPos = { x: 0, y: 0 };          // stage px of the rig's top-left
+let rigHome = { x: 0, y: 0 };
+
+function layout() {
+  const s = stage();
+  rigScale = (s.h * 0.66) / PET_H;
+  pet.style.transform = `scale(${rigScale})`;
+  rig.style.width = `${PET_W * rigScale}px`;
+  rig.style.height = `${PET_H * rigScale}px`;
+  rigHome = { x: s.w / 2 - (PET_W * rigScale) / 2, y: s.h * 0.885 - PET_H * rigScale };
+  setRig(rigHome.x, rigHome.y);
+}
+function setRig(x, y) {
+  rigPos = { x, y };
+  rig.style.transform = `translate(${x}px, ${y}px)`;
+}
+addEventListener('resize', layout);
+
+const m = () => pet.contentWindow.mascot;
+
+/* ---------- fake cursor ---------- */
+const cur = $('cursor'), ring = $('click-ring');
+const cursor = { x: -100, y: -100 };
+function setCursor(x, y) {
+  cursor.x = x; cursor.y = y;
+  cur.style.transform = `translate(${x}px, ${y}px)`;
+}
+function cursorVisible(on) { cur.style.opacity = on ? 1 : 0; }
+async function clickPulse() {
+  cur.animate([{ transform: `translate(${cursor.x}px,${cursor.y}px) scale(1)` },
+               { transform: `translate(${cursor.x}px,${cursor.y}px) scale(.82)` },
+               { transform: `translate(${cursor.x}px,${cursor.y}px) scale(1)` }],
+              { duration: 260, easing: 'ease-out' });
+  ring.style.left = `${cursor.x - ring.offsetWidth / 2 + 4}px`;
+  ring.style.top = `${cursor.y - ring.offsetHeight / 2 + 4}px`;
+  ring.animate([{ opacity: .8, transform: 'scale(.3)' }, { opacity: 0, transform: 'scale(1)' }],
+               { duration: 460, easing: 'ease-out' });
+  await sleep(200);
+}
+
+/* feed the engine the cursor position (iframe visual coords) */
+setInterval(() => {
+  if (!m()) return;
+  m().setPointer((cursor.x - rigPos.x) / rigScale, (cursor.y - rigPos.y) / rigScale);
+}, 50);
+
+/* ---------- tweens ---------- */
+const eases = {
+  smooth: t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
+  out: t => 1 - Math.pow(1 - t, 3),
+  inout: t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+};
+function tween(ms, ease, step) {
+  return new Promise(res => {
+    const t0 = performance.now(), fn = eases[ease] || eases.smooth;
+    (function tick(now) {
+      const k = Math.min(1, (now - t0) / ms);
+      step(fn(k));
+      if (k < 1) requestAnimationFrame(tick); else res();
+    })(t0);
+  });
+}
+const cursorTo = (x, y, ms, ease = 'smooth') => {
+  const fx = cursor.x, fy = cursor.y;
+  return tween(ms, ease, k => setCursor(fx + (x - fx) * k, fy + (y - fy) * k));
+};
+
+/* pet-relative helpers (fractions of the rig box) */
+const petPoint = (fx, fy) => ({ x: rigPos.x + PET_W * rigScale * fx, y: rigPos.y + PET_H * rigScale * fy });
+
+/* ---------- captions ---------- */
+const cap = $('cap');
+async function say(head, sub, holdMs) {
+  cap.innerHTML = `<h2 class="capIn">${head}</h2>` + (sub ? `<p class="capIn">${sub}</p>` : '');
+  if (holdMs) { await sleep(holdMs); await shutUp(); }
+}
+async function shutUp() {
+  [...cap.children].forEach(c => c.classList.replace('capIn', 'capOut'));
+  await sleep(430);
+  cap.innerHTML = '';
+}
+
+/* ---------- accents ---------- */
+const ACCENTS = {
+  clawd: 'rgba(215,119,87,.17)',
+  codex: 'rgba(123,109,245,.20)',
+  cursor: 'rgba(200,203,214,.13)',
+};
+const setAccent = name => document.body.style.setProperty('--accent', ACCENTS[name]);
+
+/* ---------- switcher menu ---------- */
+const GLYPHS = { clawd: '✻', codex: '☁', cursor: '▮' };
+async function switchViaMenu(from, to) {
+  const menu = $('menu');
+  const rows = [...menu.querySelectorAll('.row')];
+  const idx = s => rows.findIndex(r => r.dataset.skin === s);
+  rows.forEach(r => r.classList.toggle('active', r.dataset.skin === from));
+  $('hl').style.top = `${0.8 + idx(from) * 4.45}vh`;
+  menu.classList.add('show');
+  await sleep(650);
+  $('hl').style.top = `${0.8 + idx(to) * 4.45}vh`;
+  await sleep(450);
+  rows.forEach(r => r.classList.toggle('active', r.dataset.skin === to));
+  await sleep(350);
+  menu.classList.remove('show');
+  m().setSkin(to);
+  setAccent(to);
+  await sleep(300);
+  $('mbGlyph').textContent = GLYPHS[to];
+}
+
+/* ---------- drag (real windowMoved physics) ---------- */
+async function dragPet(path, ms) {
+  // path: array of {fx, fy} stage-fraction waypoints, smoothed catmull-ish via tween chaining
+  const s = stage();
+  const grabOffset = { x: cursor.x - rigPos.x, y: cursor.y - rigPos.y };
+  let prev = { ...rigPos };
+  for (const p of path) {
+    const target = { x: s.w * p.fx - grabOffset.x, y: s.h * p.fy - grabOffset.y };
+    const from = { ...rigPos };
+    await tween(ms / path.length, p.ease || 'inout', k => {
+      const nx = from.x + (target.x - from.x) * k;
+      const ny = from.y + (target.y - from.y) * k;
+      setRig(nx, ny);
+      setCursor(nx + grabOffset.x, ny + grabOffset.y);
+      if (m()) m().windowMoved((nx - prev.x) / rigScale / 1.4, (ny - prev.y) / rigScale / 1.4);
+      prev = { x: nx, y: ny };
+    });
+  }
+}
+
+/* ---------- scenes ---------- */
+async function scColdOpen() {
+  await sleep(700);
+  $('menubar').style.opacity = 1;
+  await say('Three hours into an agent run…', '', 2450);
+  await say('…and macOS locks your screen.', '', 2450);
+}
+
+async function scReveal() {
+  setAccent('clawd');
+  rig.style.opacity = 1;
+  rig.animate([{ transform: `translate(${rigPos.x}px,${rigPos.y + 30}px) scale(.6)`, opacity: 0 },
+               { transform: `translate(${rigPos.x}px,${rigPos.y}px) scale(1.06)`, opacity: 1, offset: .7 },
+               { transform: `translate(${rigPos.x}px,${rigPos.y}px) scale(1)`, opacity: 1 }],
+              { duration: 700, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
+  await sleep(450);
+  if (m()) m().poke();
+  await say('Meet Mascot.', 'A tiny desktop pet that keeps your Mac awake.', 3600);
+}
+
+async function scAlive() {
+  say('It knows you’re there.', 'Eyes on your cursor, always.');
+  const a = petPoint(1.35, 0.55);
+  setCursor(a.x, a.y); cursorVisible(true);
+  await cursorTo(petPoint(1.18, 0.28).x, petPoint(1.18, 0.28).y, 900, 'out');
+  await cursorTo(petPoint(-0.2, 0.35).x, petPoint(-0.2, 0.35).y, 1500, 'inout');
+  await cursorTo(petPoint(-0.08, 0.72).x, petPoint(-0.08, 0.72).y, 900, 'inout');
+  const c = petPoint(0.5, 0.62);
+  await cursorTo(c.x, c.y, 800, 'inout');       // onto the body: blush + wave
+  await sleep(2500);
+  await shutUp();
+}
+
+async function scDrag() {
+  say('Fling it anywhere.', 'It hangs on. It sticks the landing.');
+  // make sure the cursor is on the pet (scene may run standalone)
+  const grip = petPoint(0.5, 0.62);
+  if (cursor.x < 0) setCursor(grip.x + 260, grip.y + 140);
+  cursorVisible(true);
+  await cursorTo(grip.x, grip.y, 550, 'out');
+  await clickPulse();
+  await dragPet([
+    { fx: 0.30, fy: 0.52 },
+    { fx: 0.68, fy: 0.44, ease: 'inout' },
+    { fx: 0.50, fy: 0.60, ease: 'out' },
+  ], 3300);
+  // settle home
+  const from = { ...rigPos };
+  await tween(600, 'inout', k => {
+    setRig(from.x + (rigHome.x - from.x) * k, from.y + (rigHome.y - from.y) * k);
+  });
+  await cursorTo(petPoint(1.4, 0.3).x, petPoint(1.4, 0.3).y, 700, 'inout');
+  cursorVisible(false);
+  await sleep(700);
+  await shutUp();
+}
+
+async function scCoffee() {
+  say('It caffeinates.', 'Somebody has to stay up.');
+  if (m()) m().play('coffee');
+  await sleep(6600);
+  await shutUp();
+}
+
+async function scSwitch() {
+  say('Three mascots.', 'Switch from the menu bar.');
+  await sleep(500);
+  await switchViaMenu('clawd', 'codex');
+  await sleep(1500);
+  await shutUp();
+}
+
+async function scCodex() {
+  say('Codex daydreams…', '…then rains a little code.');
+  if (m()) m().play('float');
+  await sleep(4600);
+  if (m()) m().play('rain');
+  await sleep(3400);
+  await shutUp();
+}
+
+async function scCube() {
+  await switchViaMenu('codex', 'cursor');
+  say('The cube ships completions.', 'Tab. Tab.');
+  await sleep(600);
+  if (m()) m().play('flip');
+  await sleep(1800);
+  if (m()) m().play('tabtab');
+  await sleep(4600);
+  await shutUp();
+}
+
+async function scEnd() {
+  rig.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, fill: 'forwards' });
+  $('menubar').style.opacity = 0;
+  document.body.style.setProperty('--accent', 'rgba(215,119,87,.10)');
+  await sleep(500);
+  const e = $('endcard');
+  e.style.opacity = 1;
+  e.classList.add('cardIn');
+}
+
+/* ---------- run ---------- */
+const SCENES = {
+  reveal: scReveal, alive: scAlive, drag: scDrag, coffee: scCoffee,
+  switch: scSwitch, codex: scCodex, cube: scCube, end: scEnd,
+};
+async function film() {
+  await scColdOpen();
+  await scReveal();
+  await scAlive();
+  await scDrag();
+  await scCoffee();
+  await scSwitch();
+  await scCodex();
+  await scCube();
+  await scEnd();
+}
+async function boot() {
+  layout();
+  await new Promise(r => (pet.contentWindow.mascot ? r() : pet.addEventListener('load', r)));
+  await sleep(400);
+  const one = new URLSearchParams(location.search).get('scene');
+  if (one && SCENES[one]) {
+    rig.style.opacity = 1;
+    setAccent('clawd');
+    $('menubar').style.opacity = 1;
+    for (;;) { await SCENES[one](); await sleep(1200); }
+  }
+  await film();
+}
+boot();
+</script>
+</body>
+</html>

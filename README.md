@@ -120,6 +120,7 @@ Clawd's sprite geometry and the official body color, `rgb(215,119,87)`, were rec
 - Art and behavior tuning live in `mascot.html`: each skin is a plain-data entry in the `SKINS` table (geometry, colors, label vocabulary, event weights). Adding a fourth mascot is mostly drawing rects.
 - Open `mascot.html` in a browser to preview the pet; mouse movement and clicks stand in for the native cursor feed. `?skin=clawd|codex|cursor` selects a mascot and `?pose=coffee|think|float|rain|flip|tabtab|stretch|shuffle|sleep|wave` triggers a pose for screenshots.
 - Releasing: tag a GitHub release with a `Mascot.app.zip` asset, then update the Homebrew cask with [`bump-mascot.sh`](https://github.com/maulmota/homebrew-tap/blob/main/bump-mascot.sh) in the tap repo.
+- [`promo/promo.html`](promo/promo.html) is a self-running product film built on the live engine (scene looper via `?scene=`); the release videos are recorded straight from it.
 
 ## Disclaimer
 

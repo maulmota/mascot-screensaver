@@ -919,6 +919,8 @@ async function runEvent(fn) {
   try { await fn(); } finally { state.busy = false; }
 }
 (async function scheduler() {
+  // ?noidle=1 hands full control to a driver (docs shots, the promo stage)
+  if (new URLSearchParams(location.search).get('noidle')) return;
   await sleep(3500);
   for (;;) {
     await sleep(rand(16000, 45000));
@@ -1064,10 +1066,14 @@ if (!window.webkit?.messageHandlers?.quit) {
   // running in a normal browser: emulate the Swift feeds
   window.addEventListener('mousemove', e => setPointer(e.clientX, e.clientY));
   window.addEventListener('click', e => { if (e.target !== el.close) mascot.poke(); });
-  // ?skin=openai&pose=spin — for docs screenshots and dev
+  // ?skin=codex&pose=rain&zoom=3&nochrome=1 — for docs screenshots,
+  // dev, and the promo stage
   const params = new URLSearchParams(location.search);
   const skin = params.get('skin');
   if (skin && SKINS[skin]) setSkin(skin, false);
+  const zoom = parseFloat(params.get('zoom'));
+  if (zoom > 0) document.body.style.zoom = zoom;
+  if (params.get('nochrome')) el.close.style.display = 'none';
   const pose = params.get('pose');
   if (pose === 'sleep') setTimeout(() => setAwake(false), 400);
   else if (pose === 'wave') setTimeout(() => mascot.wave(), 400);
