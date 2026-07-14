@@ -28,13 +28,13 @@
     -webkit-user-select: none;
   }
 
-  /* The pet itself (sprite + label) is the drag handle */
+  /* The pet itself (sprite + label). Window dragging is handled natively
+     by the app (WKWebView ignores -webkit-app-region). */
   #stage {
     position: absolute;
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    -webkit-app-region: drag;
     text-align: center;
   }
 
@@ -109,7 +109,6 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 240ms ease, background 140ms ease;
-    -webkit-app-region: no-drag;
     z-index: 100;
     font-family: -apple-system, sans-serif;
   }

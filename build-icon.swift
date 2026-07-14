@@ -41,9 +41,13 @@ func renderIcon(pixels: Int) -> Data? {
 
     let s = CGFloat(pixels)
 
-    // Dark squircle background (~22.5% corner radius matches macOS app icons)
-    let bgRect = NSRect(x: 0, y: 0, width: s, height: s)
-    let bgPath = NSBezierPath(roundedRect: bgRect, xRadius: s * 0.225, yRadius: s * 0.225)
+    // Standard macOS icon grid: the squircle tile occupies ~82.4% of the
+    // canvas and the rest is transparent margin. Without the margin the
+    // icon renders noticeably larger than neighboring apps.
+    let tile = s * 0.824
+    let inset = (s - tile) / 2
+    let bgRect = NSRect(x: inset, y: inset, width: tile, height: tile)
+    let bgPath = NSBezierPath(roundedRect: bgRect, xRadius: tile * 0.225, yRadius: tile * 0.225)
     NSColor(srgbRed: 0.07, green: 0.07, blue: 0.07, alpha: 1).setFill()
     bgPath.fill()
 
@@ -61,8 +65,8 @@ func renderIcon(pixels: Int) -> Data? {
         (4, 4, 2, 2), (16, 4, 2, 2),       // upper-half eye notches
     ]
 
-    let u = s * 0.03                       // unit -> 22u = 66% of icon width
-    let left = (s - 22 * u) / 2
+    let u = tile * 0.03                    // unit -> 22u = 66% of the tile
+    let left = (s - 22 * u) / 2            // tile is centered, so canvas-centering matches
     let top  = (s - 16 * u) / 2            // grid top, measured from icon top
     func fill(_ r: (x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat)) {
         // convert top-down grid coords to CG's bottom-left origin

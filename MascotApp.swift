@@ -75,7 +75,42 @@ final class MascotWindow: NSWindow {
 }
 
 final class MascotWebView: WKWebView {
+    /// Decides whether a mouse-down should drag the window (Clawd's body)
+    /// or go to the page (the close button). Set by the app delegate.
+    var isDragPoint: ((NSEvent) -> Bool)?
+    var onPoke: (() -> Void)?
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    // WKWebView ignores `-webkit-app-region: drag` and reports
+    // mouseDownCanMoveWindow = false, so isMovableByWindowBackground never
+    // engages for web content. Window dragging is implemented natively:
+    // a short tracking loop turns small, quick presses into pokes and
+    // anything that moves into a real window drag.
+    override func mouseDown(with event: NSEvent) {
+        guard isDragPoint?(event) == true, let window else {
+            super.mouseDown(with: event)
+            return
+        }
+        let start = event.locationInWindow
+        while true {
+            guard let next = window.nextEvent(
+                matching: [.leftMouseDragged, .leftMouseUp],
+                until: .distantFuture,
+                inMode: .eventTracking,
+                dequeue: true
+            ) else { break }
+            if next.type == .leftMouseUp {
+                onPoke?()
+                return
+            }
+            if hypot(next.locationInWindow.x - start.x,
+                     next.locationInWindow.y - start.y) > 3 {
+                window.performDrag(with: event)
+                return
+            }
+        }
+    }
 }
 
 // MARK: - App delegate
@@ -109,8 +144,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     private var lastOrigin = CGPoint.zero
     private var isRepositioning = false      // squelch windowDidMove during programmatic moves
     private var saveTimer: Timer?
-    private var mouseDownAt: CGPoint?
-    private var mouseDownTime = Date.distantPast
 
     private let originXKey = "mascotOriginX"
     private let originYKey = "mascotOriginY"
@@ -121,7 +154,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         power.enable()
         buildWindow()
         buildStatusItem()
-        installClickMonitor()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -143,7 +175,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         window.backgroundColor = .clear
         window.isOpaque = false
         window.hasShadow = false
-        window.isMovableByWindowBackground = true
+        // dragging is driven by MascotWebView.mouseDown, not the background
+        window.isMovableByWindowBackground = false
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         window.ignoresMouseEvents = true     // click-through until the cursor is on Clawd
         window.delegate = self
@@ -160,6 +193,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
         webView.setValue(false, forKey: "drawsBackground")
+        webView.isDragPoint = { [weak self] event in
+            guard let self else { return false }
+            let loc = event.locationInWindow
+            let css = CGPoint(x: loc.x, y: self.window.frame.height - loc.y)
+            let onBody = self.bodyZone?.contains(css) ?? false
+            let onClose = self.closeZone?.insetBy(dx: -6, dy: -6).contains(css) ?? false
+            return onBody && !onClose
+        }
+        webView.onPoke = { [weak self] in self?.js("mascot.poke()") }
         webView.loadFileURL(htmlURL, allowingReadAccessTo: htmlURL.deletingLastPathComponent())
 
         window.contentView = webView
@@ -361,31 +403,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
             js("mascot.setPointer(-99999, -99999)")   // out of sight, eyes wander freely
         }
         pointerWasNear = near
-    }
-
-    /// Distinguish a click on Clawd (poke!) from the start of a drag.
-    private func installClickMonitor() {
-        NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { [weak self] event in
-            guard let self, event.window === self.window else { return event }
-            let f = self.window.frame
-            let loc = NSEvent.mouseLocation
-            let css = CGPoint(x: loc.x - f.minX, y: f.maxY - loc.y)
-
-            if event.type == .leftMouseDown {
-                self.mouseDownAt = css
-                self.mouseDownTime = Date()
-            } else if let down = self.mouseDownAt {
-                let moved = hypot(css.x - down.x, css.y - down.y)
-                let quick = Date().timeIntervalSince(self.mouseDownTime) < 0.45
-                let onBody = self.bodyZone?.contains(css) ?? false
-                let onClose = self.closeZone?.insetBy(dx: -6, dy: -6).contains(css) ?? false
-                if moved < 4, quick, onBody, !onClose {
-                    self.js("mascot.poke()")
-                }
-                self.mouseDownAt = nil
-            }
-            return event
-        }
     }
 
     // MARK: Drag feedback + persistence
