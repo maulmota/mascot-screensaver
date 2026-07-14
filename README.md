@@ -21,17 +21,17 @@ macOS only. One small universal binary, no dependencies, no network access, no a
 
 Three skins, switchable live from the menu bar (each with its own signature antics):
 
-| Clawd | Blossom | Cube |
+| Clawd | Codex | Cube |
 |:---:|:---:|:---:|
-| <img src="assets/clawd.png" width="200" alt="Clawd, the Claude Code mascot"> | <img src="assets/openai.png" width="200" alt="Pixel blossom inspired by the OpenAI mark"> | <img src="assets/cursor.png" width="200" alt="Pixel cube inspired by the Cursor mark"> |
-| The Claude Code mascot, faithful to the terminal art. Drinks coffee, thinks in sparkles. | The OpenAI-inspired hexagonal ring itself, face included. Winds up for a full spin and bursts its knot apart (it reassembles). | Inspired by the Cursor cube. Flips through fake 3D and ghost-completes its own label (tab, tab). |
+| <img src="assets/clawd.png" width="200" alt="Clawd, the Claude Code mascot"> | <img src="assets/codex.png" width="200" alt="Gradient cloud inspired by the Codex mark"> | <img src="assets/cursor.png" width="200" alt="Pixel cube inspired by the Cursor mark"> |
+| The Claude Code mascot, faithful to the terminal art. Drinks coffee, thinks in sparkles. | A soft gradient cloud inspired by the Codex mark, with the `> _` prompt as its face: the chevron winks and the underscore blinks like a caret. Levitates dreamily and rains little bits of code. | Inspired by the Cursor cube. Flips through fake 3D and ghost-completes its own label (tab, tab). |
 
 ## Features
 
 - **Keeps the display awake** with a proper IOKit power assertion (`PreventUserIdleDisplaySleep`). Not a mouse jiggler: no fake input, nothing moves your cursor.
-- **Three switchable mascots**: authentic pixel Clawd (official orange, terminal-accurate 1:2 pixel proportions), the blossom ring, and a cube, all drawn on the same grid. Switching poofs one out and pops the next in.
+- **Three switchable mascots**: authentic pixel Clawd (official orange, terminal-accurate 1:2 pixel proportions), the smooth Codex gradient cloud, and a pixel cube, all on the same footprint. Switching poofs one out and pops the next in.
 - **Alive**: breathes, blinks, glances around, and its eyes follow your cursor.
-- **Idle antics per mascot**: everyone stretches and shuffles; Clawd drinks coffee and thinks in ✻ sparkles, the ring spins and bursts apart, the cube 3D-flips and plays autocomplete with its own label.
+- **Idle antics per mascot**: everyone stretches and shuffles; Clawd drinks coffee and thinks in ✻ sparkles, the Codex cloud levitates and rains code, the cube 3D-flips and plays autocomplete with its own label.
 - **A label with a bit**: the sign under the pet never sits still, typing through 250+ rotating statuses ("Reticulating…", "Achieving sentience…", "Basically Electron…") plus each mascot's own vocabulary.
 - **Interactive**: hover for a blush and a wave, click for a happy hop, drag it anywhere (it tilts in your hand and lands with a squash).
 - **Never in your way**: the window is click-through everywhere except Clawd's actual body, so it cannot block clicks on whatever is behind it.
@@ -84,17 +84,17 @@ cd mascot-screensaver
 
 ## Usage
 
-The menu bar symbol matches the active mascot (✻ / ⬡ / ▮) and dims while keep-awake is paused.
+The menu bar symbol matches the active mascot (✻ / ☁ / ▮) and dims while keep-awake is paused.
 
 | Action | Result |
 |---|---|
 | Hover the mascot | Blush, a little wave, and the close button appears |
 | Click the mascot | Happy hop |
 | Drag the mascot | Move it anywhere; position is remembered |
-| Menu → Mascot | Switch between Clawd, Blossom, and Cube |
+| Menu → Mascot | Switch between Clawd, Codex, and Cube |
 | Menu → Keep Mac awake | Toggle the assertion. When off, the pet dozes and the display may sleep |
 | Menu → Say hi | A wave |
-| Menu → Coffee break / Spin / Tab, tab | The active mascot's signature trick |
+| Menu → Coffee break / Make it rain / Tab, tab | The active mascot's signature trick |
 | Menu → Reset position | Send it back to the top-right corner |
 | Menu → Launch at login | Start with your Mac (macOS 13+) |
 
@@ -118,12 +118,12 @@ Clawd's sprite geometry and the official body color, `rgb(215,119,87)`, were rec
 
 - `./start.command` runs the Swift source directly, no build step, for quick iteration.
 - Art and behavior tuning live in `mascot.html`: each skin is a plain-data entry in the `SKINS` table (geometry, colors, label vocabulary, event weights). Adding a fourth mascot is mostly drawing rects.
-- Open `mascot.html` in a browser to preview the pet; mouse movement and clicks stand in for the native cursor feed. `?skin=clawd|openai|cursor` selects a mascot and `?pose=coffee|think|spin|bloom|flip|tabtab|stretch|shuffle|sleep|wave` triggers a pose for screenshots.
+- Open `mascot.html` in a browser to preview the pet; mouse movement and clicks stand in for the native cursor feed. `?skin=clawd|codex|cursor` selects a mascot and `?pose=coffee|think|float|rain|flip|tabtab|stretch|shuffle|sleep|wave` triggers a pose for screenshots.
 - Releasing: tag a GitHub release with a `Mascot.app.zip` asset, then update the Homebrew cask with [`bump-mascot.sh`](https://github.com/maulmota/homebrew-tap/blob/main/bump-mascot.sh) in the tap repo.
 
 ## Disclaimer
 
-This is an unofficial fan project, not affiliated with or endorsed by Anthropic, OpenAI, or Anysphere. Clawd, Claude, and Claude Code are Anthropic's trademarks; the OpenAI name and blossom mark belong to OpenAI; Cursor and its cube mark belong to Anysphere. The pixel mascots here are original fan-art interpretations, drawn from scratch as chunky creatures with feet. If any of these companies would like their mascot removed (or would like to send stickers), please open an issue.
+This is an unofficial fan project, not affiliated with or endorsed by Anthropic, OpenAI, or Anysphere. Clawd, Claude, and Claude Code are Anthropic's trademarks; Codex and its cloud mark belong to OpenAI; Cursor and its cube mark belong to Anysphere. The mascots here are original fan-art interpretations, drawn from scratch as little creatures with feet. If any of these companies would like their mascot removed (or would like to send stickers), please open an issue.
 
 ## License
 

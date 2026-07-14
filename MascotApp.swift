@@ -1,8 +1,8 @@
 #!/usr/bin/env swift
 //
 // Mascot — a desktop pet that keeps the Mac awake.
-// Ships three switchable skins: Clawd (the Claude Code mascot), a pixel
-// blossom inspired by the OpenAI mark, and a pixel cube inspired by the
+// Ships three switchable skins: Clawd (the Claude Code mascot), a gradient
+// cloud inspired by the Codex mark, and a pixel cube inspired by the
 // Cursor mark.
 //
 // A borderless floating window hosts mascot.html (the pixel art and
@@ -136,7 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     }
     private let skins = [
         Skin(id: "clawd",  title: "Clawd",  glyph: "✻", trickTitle: "Coffee break", trick: "coffee"),
-        Skin(id: "openai", title: "OpenAI", glyph: "⬡", trickTitle: "Spin",         trick: "spin"),
+        Skin(id: "codex",  title: "Codex",  glyph: "☁", trickTitle: "Make it rain", trick: "rain"),
         Skin(id: "cursor", title: "Cursor", glyph: "▮", trickTitle: "Tab, tab",     trick: "tabtab"),
     ]
     private let skinKey = "mascotSkin"
@@ -175,6 +175,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     // MARK: Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // v2.3.0: the "openai" skin became "codex"
+        if UserDefaults.standard.string(forKey: skinKey) == "openai" {
+            UserDefaults.standard.set("codex", forKey: skinKey)
+        }
         power.enable()
         buildWindow()
         buildStatusItem()

@@ -13,7 +13,8 @@
      Skins (see SKINS in the script):
        clawd  — the Claude Code mascot, geometry extracted from the
                 official terminal art; body rgb(215,119,87)
-       openai — pixel hexagonal ring inspired by the OpenAI mark
+       codex  — smooth gradient cloud inspired by the Codex mark, with
+                the "> _" prompt as its face (the one non-pixel skin)
        cursor — pixel cube inspired by the Cursor mark
      ============================================================ */
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -78,6 +79,10 @@
   }
   @keyframes blink-cursor { 50% { opacity: 0; } }
 
+  /* the Codex mascot's underscore-mouth blinks like a terminal caret */
+  .caret { animation: caret-blink 1.3s steps(2) infinite; }
+  @keyframes caret-blink { 50% { opacity: 0.15; } }
+
   /* coffee steam */
   .steam {
     opacity: 0;
@@ -118,6 +123,15 @@
 <body>
   <div id="stage">
     <svg id="sprite" viewBox="-2 -10 22 22" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Codex cloud gradient: lavender to deep blue, shared by all lobes -->
+        <linearGradient id="codexGrad" x1="0" y1="-0.5" x2="0" y2="10"
+                        gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#B7A6F7"/>
+          <stop offset="0.5" stop-color="#7B7DF3"/>
+          <stop offset="1" stop-color="#4634F0"/>
+        </linearGradient>
+      </defs>
       <!-- ground shadow (kept outside jump so it stays down during hops) -->
       <ellipse id="shadow" cx="9" cy="10.9" rx="7.2" ry="0.55"
                fill="#000" opacity="0.16" shape-rendering="auto"/>
@@ -152,7 +166,7 @@
    Native bridge (Swift calls in):
      mascot.setPointer(x, y)      — global cursor in window CSS coords
      mascot.setAwake(bool)        — keep-awake assertion state
-     mascot.setSkin(name, anim)   — switch mascot: clawd | openai | cursor
+     mascot.setSkin(name, anim)   — switch mascot: clawd | codex | cursor
      mascot.windowMoved(dx,dy)    — live window-drag deltas
      mascot.wave() / mascot.poke() / mascot.play(name) / mascot.demo()
    JS -> Swift: "quit" message, "hitRect" message ({body, close} rects)
@@ -219,36 +233,56 @@ const SKINS = {
     trick: 'coffee',
   },
 
-  openai: {
-    name: 'openai',
-    color: '#EDEDED',                       // monochrome blossom
-    gerunds: ['Reasoning…', 'Aligning…', 'Pretraining…', 'Scaling…',
-              'Attending…', 'Emerging…'],
-    // six lobes around a center block; E/W lobes double as arms
-    // the hexagonal ring itself, pixelated: transparent hole in the middle,
-    // face on the thicker bottom band; side segments double as arms
+  codex: {
+    name: 'codex',
+    color: '#6D5EF3',
+    smooth: true,                       // rounded vector cloud, not pixels
+    gerunds: ['Codexing…', 'Prompting…', 'Shelling out…', 'Cloud computing…',
+              'Brainstorming…', 'Condensing…', 'Drizzling bits…', 'Precipitating…'],
+    // fluffy six-lobe cloud on one shared gradient; W/E puffs are the arms.
+    // Its face is the prompt: a ">" chevron eye and a "_" caret mouth.
     body: [
-      { r: [6, 0, 6, 2],  dir: [0, -1.2] },         // top bar
-      { r: [4, 1, 2, 2],  dir: [-0.9, -0.9] },      // upper-left corner
-      { r: [12, 1, 2, 2], dir: [0.9, -0.9] },       // upper-right corner
-      { r: [4, 5, 2, 2],  dir: [-0.9, 0.9] },       // lower-left corner
-      { r: [12, 5, 2, 2], dir: [0.9, 0.9] },        // lower-right corner
-      { r: [6, 4, 6, 4] },                          // bottom band (face, anchored)
+      { c: [9, 4.6, 3.4],   f: 'url(#codexGrad)' },                    // core
+      { c: [9, 2.1, 2.4],   f: 'url(#codexGrad)', dir: [0, -1.2] },    // top puff
+      { c: [6.1, 3.0, 2.2], f: 'url(#codexGrad)', dir: [-0.9, -0.9] },
+      { c: [11.9, 3.0, 2.2], f: 'url(#codexGrad)', dir: [0.9, -0.9] },
+      { c: [6.6, 6.3, 2.2], f: 'url(#codexGrad)', dir: [-0.9, 0.9] },
+      { c: [11.4, 6.3, 2.2], f: 'url(#codexGrad)', dir: [0.9, 0.9] },
     ],
-    armL: { rects: [[3, 3, 2, 2]], dir: [-1.2, 0] },   // left side segment
-    armR: { rects: [[13, 3, 2, 2]], dir: [1.2, 0] },   // right side segment
-    feetL: [[6, 8, 1, 2]],
-    feetR: [[11, 8, 1, 2]],
-    eyes: { l: [7, 5], r: [10, 5], color: '#0f0f0f' },
-    eyeClamp: { up: -0.9, down: 0.5, side: 1 },
-    blush: { pos: [[5.9, 5.9], [10.8, 5.9]], color: '#F2B4B4' },
-    face: { x: 9, y: 6 },
-    glow: 'rgba(237,237,237,.28)',
-    poof: ['#EDEDED', '#cfcfcf', '#a8a8a8'],
-    raiseL: 'translate(1.4px,-3.2px)', raiseR: 'translate(-1.4px,-3.2px)',
-    waveR: 'translate(-1px,-3.6px)',
-    events: () => [[evGlance, 4], [evShuffle, 3], [evSpin, 2.2], [evBloom, 2], [evStretch, 1.5]],
-    trick: 'spin',
+    armL: { rects: [{ c: [4.4, 5.1, 2.1], f: 'url(#codexGrad)' }], dir: [-1.3, 0] },
+    armR: { rects: [{ c: [13.6, 5.1, 2.1], f: 'url(#codexGrad)' }], dir: [1.3, 0] },
+    feetL: [{ r: [7.0, 8.2, 1.5, 1.8], rx: 0.75, f: '#3B2FE0' }],
+    feetR: [{ r: [9.5, 8.2, 1.5, 1.8], rx: 0.75, f: '#3B2FE0' }],
+    eyes: {
+      color: '#fff',
+      make(side) {
+        if (side === 'l') {             // the ">" chevron, doubling as an eye
+          const p = document.createElementNS(SVGNS, 'path');
+          p.setAttribute('d', 'M6.0 2.6 L8.2 4.2 L6.0 5.8');
+          p.setAttribute('stroke', '#fff');
+          p.setAttribute('stroke-width', '1.05');
+          p.setAttribute('stroke-linecap', 'round');
+          p.setAttribute('stroke-linejoin', 'round');
+          p.setAttribute('fill', 'none');
+          p.setAttribute('class', 'pupil');
+          return p;
+        }
+        const r = rect(9.7, 4.95, 2.9, 1.0, '#fff');    // the "_" caret mouth
+        r.setAttribute('rx', 0.48);
+        r.setAttribute('ry', 0.48);
+        r.setAttribute('class', 'pupil caret');
+        return r;
+      },
+    },
+    eyeClamp: { up: -1.2, down: 0.8, side: 1.2 },
+    blush: { pos: [[4.9, 5.6], [11.9, 5.6]], color: '#F2A6C8', rx: 0.45 },
+    face: { x: 9, y: 4.2 },
+    glow: 'rgba(123,109,245,.4)',
+    poof: ['#B7A6F7', '#7B7DF3', '#ffffff'],
+    raiseL: 'translate(1.0px,-2.4px)', raiseR: 'translate(-1.0px,-2.4px)',
+    waveR: 'translate(-0.7px,-3px)',
+    events: () => [[evGlance, 3], [evShuffle, 2.5], [evFloat, 2.2], [evRain, 2], [evStretch, 1.3]],
+    trick: 'rain',
   },
 
   cursor: {
@@ -322,17 +356,36 @@ function glyph(x, y, str, size, fill) {
 }
 
 /* ---------- skin construction ---------- */
+// A geometry part is [x, y, w, h] (plain rect) or an object:
+//   { r: [x, y, w, h], rx?, f?, dir?, tag? }   (rounded) rect
+//   { c: [cx, cy, radius], f?, dir?, tag? }    circle
+function makeNode(part, fallbackFill) {
+  const p = Array.isArray(part) ? { r: part } : part;
+  let node;
+  if (p.c) {
+    node = document.createElementNS(SVGNS, 'circle');
+    node.setAttribute('cx', p.c[0]);
+    node.setAttribute('cy', p.c[1]);
+    node.setAttribute('r', p.c[2]);
+    node.setAttribute('fill', p.f || fallbackFill);
+  } else {
+    node = rect(...p.r, p.f || fallbackFill);
+    if (p.rx) { node.setAttribute('rx', p.rx); node.setAttribute('ry', p.rx); }
+  }
+  if (p.dir) node.__dir = p.dir;
+  return node;
+}
+
 function buildSkin(s) {
-  const fillGroup = (g, rects, fill) => {
+  const fillGroup = (g, parts, fill) => {
     g.replaceChildren();
-    (rects || []).forEach(([x, y, w, h]) => g.appendChild(rect(x, y, w, h, fill || s.color)));
+    (parts || []).forEach(part => g.appendChild(makeNode(part, fill || s.color)));
   };
 
   el.body.replaceChildren();
   skinParts = {};
   for (const part of s.body) {
-    const node = rect(...part.r, part.f || s.color);
-    if (part.dir) node.__dir = part.dir;
+    const node = makeNode(part, s.color);
     if (part.tag) skinParts[part.tag] = node;
     el.body.appendChild(node);
   }
@@ -341,18 +394,28 @@ function buildSkin(s) {
   fillGroup(el.feetL, s.feetL, s.feetLFill);
   fillGroup(el.feetR, s.feetR, s.feetRFill);
 
-  const pupil = (g, [x, y]) => {
-    const p = rect(x, y, 1, 2, s.eyes.color);
-    p.setAttribute('class', 'pupil');
+  const pupil = (g, side) => {
+    let p;
+    if (s.eyes.make) {
+      p = s.eyes.make(side);
+    } else {
+      const [x, y] = side === 'l' ? s.eyes.l : s.eyes.r;
+      p = rect(x, y, 1, 2, s.eyes.color);
+      p.setAttribute('class', 'pupil');
+    }
     g.replaceChildren(p);
   };
-  pupil(el.eyeL, s.eyes.l);
-  pupil(el.eyeR, s.eyes.r);
+  pupil(el.eyeL, 'l');
+  pupil(el.eyeR, 'r');
+
+  el.sprite.style.shapeRendering = s.smooth ? 'auto' : 'crispEdges';
 
   [el.blushL, el.blushR].forEach((b, i) => {
     b.setAttribute('x', s.blush.pos[i][0]);
     b.setAttribute('y', s.blush.pos[i][1]);
     b.setAttribute('fill', s.blush.color);
+    b.setAttribute('rx', s.blush.rx || 0);
+    b.setAttribute('ry', s.blush.rx || 0);
     b.setAttribute('opacity', 0);
   });
 
@@ -759,10 +822,49 @@ async function evBloom() {
     { duration: 1500, easing: 'ease-in-out' }
   ).finished.catch(() => {});
   const anims = lobes.map(c => out(c, c.__dir));
-  anims.push(out(el.armL, current.armL.dir), out(el.armR, current.armR.dir));
+  if (current.armL.dir) anims.push(out(el.armL, current.armL.dir));
+  if (current.armR.dir) anims.push(out(el.armR, current.armR.dir));
   await sleep(350);
   blink(true);                                 // serene closed eyes at full bloom
   await Promise.all([...anims, glowPulse]);
+  restoreLabel();
+}
+
+/* ---------- codex events ---------- */
+async function evFloat() {
+  typeLabel(pick(['Cloud computing…', 'Daydreaming…']));
+  el.shadow.animate(
+    [{ transform: 'scale(1)', opacity: 0.16 },
+     { transform: 'scale(.62)', opacity: 0.08, offset: 0.25 },
+     { transform: 'scale(.62)', opacity: 0.08, offset: 0.78 },
+     { transform: 'scale(1)', opacity: 0.16 }],
+    { duration: 3900, easing: 'ease-in-out' }).finished.catch(() => {});
+  await move(el.jump, 'translate(0,-2.9px)', 950, 'ease-in-out');
+  await move(el.jump, 'translate(0,-2.2px)', 700, 'ease-in-out');
+  await move(el.jump, 'translate(0,-2.9px)', 700, 'ease-in-out');
+  await move(el.jump, 'translate(0,-2.2px)', 700, 'ease-in-out');
+  await move(el.jump, 'translate(0,0)', 650, 'cubic-bezier(.34,1.3,.5,1)');
+  await landSquash();
+  restoreLabel();
+}
+async function evRain() {
+  typeLabel(pick(['Precipitating…', 'Drizzling bits…']));
+  state.eyeOverride = gaze(0, 0.8);      // watch the rain fall
+  const chars = ['0', '1', '{', '}', ';', '>'];
+  for (let i = 0; i < 10; i++) {
+    const d = glyph(rand(4.5, 13), rand(7.6, 8.6), pick(chars), rand(1.1, 1.6),
+                    'rgba(196,200,255,0.92)');
+    el.fx.appendChild(d);
+    d.animate(
+      [{ opacity: 0, transform: 'translate(0,0)' },
+       { opacity: 0.9, offset: 0.25 },
+       { opacity: 0, transform: 'translate(0,3.1px)' }],
+      { duration: rand(900, 1400), easing: 'ease-in' }
+    ).finished.then(() => d.remove()).catch(() => d.remove());
+    await sleep(150);
+  }
+  await sleep(1400);
+  state.eyeOverride = null;
   restoreLabel();
 }
 
@@ -909,6 +1011,7 @@ const PLAY = {
   think: evThink, coffee: evCoffee,
   spin: evSpin, bloom: evBloom,
   flip: evFlip, tabtab: evTabTab,
+  float: evFloat, rain: evRain,
 };
 window.mascot = {
   setPointer,
