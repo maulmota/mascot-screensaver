@@ -29,11 +29,36 @@
     user-select: none;
   }
 
-  /* ---- backdrop ---- */
+  /* ---- backdrop: dim ambient accent + a breathing spotlight beam ---- */
   #glow {
     position: absolute; inset: 0;
     background:
       radial-gradient(58vh 46vh at 50% 64%, var(--accent, rgba(215,119,87,.16)), transparent 70%);
+    transition: background 1400ms ease;
+    opacity: .35;
+  }
+  /* no infinite animation on the beam: a continuously ticking animation
+     keeps the page re-rendering under 60/s capture and the film's
+     setTimeout timeline slips seconds by the end. The per-beat aimSpot
+     reframes (transient transitions) carry the living-light feel. */
+  #spot {
+    position: absolute; top: 0; bottom: 0; left: 50%; width: 120vh;
+    margin-left: -60vh;
+    transform-origin: 50% -16vh;
+    transition: transform 800ms cubic-bezier(.25,.7,.25,1), opacity 900ms ease;
+  }
+  #spotIn {
+    position: absolute; inset: 0;
+    background: conic-gradient(from 0deg at 50% -16vh,
+      transparent 160deg, rgba(238,242,255,.05) 171deg, rgba(238,242,255,.105) 180deg,
+      rgba(238,242,255,.05) 189deg, transparent 200deg);
+  }
+  #pool {
+    position: absolute; left: 50%; top: 87.5vh; width: 66vh; height: 8vh;
+    transform: translate(-50%, -50%);
+    /* no filter here: a blur is recomputed per capture in the snapshot
+       path and drags the film's event loop; the gradient is soft enough */
+    background: radial-gradient(closest-side, var(--accent, rgba(215,119,87,.16)), transparent 78%);
     transition: background 1400ms ease;
   }
   #vignette {
@@ -179,6 +204,8 @@
 </head>
 <body>
   <div id="glow"></div>
+  <div id="spot"><div id="spotIn"></div></div>
+  <div id="pool"></div>
   <div id="vignette"></div>
   <div id="floorline"></div>
 
@@ -323,6 +350,12 @@ const ACCENTS = {
 };
 const setAccent = name => document.body.style.setProperty('--accent', ACCENTS[name]);
 
+/* the spotlight reframes a little on each beat (rotation pivots at the
+   beam source above the frame; positive swings the floor hit left) */
+const aimSpot = (deg, scale = 1) => {
+  $('spot').style.transform = `rotate(${deg}deg) scale(${scale})`;
+};
+
 /* ---------- switcher menu ---------- */
 const GLYPHS = { clawd: '✻', codex: '☁', cursor: '▮' };
 async function switchViaMenu(from, to) {
@@ -372,12 +405,13 @@ async function dragPet(path, ms) {
 /* ---------- scenes ---------- */
 async function scColdOpen() {
   await sleep(450);
-  await say('Three hours into an agent run…', '', 1300);
-  await say('…and macOS locks your screen.', '', 1400);
+  await say('Three hours into an agent run…', '', 1100);
+  await say('…and macOS locks your screen.', '', 1200);
 }
 
 async function scReveal() {
   setAccent('clawd');
+  aimSpot(0, 1.05);
   rig.style.opacity = 1;
   rig.animate([{ transform: `translate(${rigPos.x}px,${rigPos.y + 30}px) scale(.6)`, opacity: 0 },
                { transform: `translate(${rigPos.x}px,${rigPos.y}px) scale(1.06)`, opacity: 1, offset: .7 },
@@ -389,6 +423,7 @@ async function scReveal() {
 }
 
 async function scAlive() {
+  aimSpot(-1.6);
   say('It knows you’re there.', 'Eyes on your cursor, always.');
   const a = petPoint(1.35, 0.55);
   setCursor(a.x, a.y); cursorVisible(true);
@@ -396,11 +431,12 @@ async function scAlive() {
   await cursorTo(petPoint(-0.15, 0.4).x, petPoint(-0.15, 0.4).y, 850, 'inout');
   const c = petPoint(0.5, 0.62);
   await cursorTo(c.x, c.y, 500, 'inout');       // onto the body: blush + wave
-  await sleep(1250);
+  await sleep(1100);
   await shutUp();
 }
 
 async function scDrag() {
+  aimSpot(0, 1.18);
   say('Fling it anywhere.', 'It hangs on. It sticks the landing.');
   // make sure the cursor is on the pet (scene may run standalone)
   const grip = petPoint(0.5, 0.62);
@@ -412,7 +448,7 @@ async function scDrag() {
     { fx: 0.31, fy: 0.52 },
     { fx: 0.67, fy: 0.44, ease: 'inout' },
     { fx: 0.50, fy: 0.60, ease: 'out' },
-  ], 1900);
+  ], 1700);
   // settle home
   const from = { ...rigPos };
   await tween(420, 'inout', k => {
@@ -425,13 +461,15 @@ async function scDrag() {
 }
 
 async function scCoffee() {
+  aimSpot(1.4, .98);
   say('It caffeinates.', 'Somebody has to stay up.');
   if (m()) m().play('coffee');
-  await sleep(3900);
+  await sleep(3500);
   await shutUp();
 }
 
 async function scSwitch() {
+  aimSpot(-2.2);
   say('Three mascots.', 'Switch from the menu bar.');
   await switchViaMenu('clawd', 'codex');
   await sleep(500);
@@ -439,17 +477,19 @@ async function scSwitch() {
 }
 
 async function scCodex() {
+  aimSpot(.8, 1.06);
   say('Codex daydreams…', '…then rains a little code.');
   await engineIdle();
   if (m()) m().play('float');
   await sleep(3200);
   await engineIdle(1500);
   if (m()) m().play('rain');
-  await sleep(1400);          // drops keep falling into the next scene
+  await sleep(1200);          // drops keep falling into the next scene
   await shutUp();
 }
 
 async function scCube() {
+  aimSpot(-.8, 1.02);
   await switchViaMenu('codex', 'cursor');
   say('The cube ships completions.', 'Tab. Tab.');
   await engineIdle(2000);
@@ -457,11 +497,13 @@ async function scCube() {
   await sleep(1500);
   await engineIdle(1200);
   if (m()) m().play('tabtab');
-  await sleep(3000);
+  await sleep(2700);
   await shutUp();
 }
 
 async function scEnd() {
+  aimSpot(0, 1.28);
+  $('spot').style.opacity = .55;
   rig.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, fill: 'forwards' });
   $('menubar').style.opacity = 0;
   document.body.style.setProperty('--accent', 'rgba(215,119,87,.10)');

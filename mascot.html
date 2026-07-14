@@ -774,38 +774,45 @@ async function evThink() {
 }
 async function evCoffee() {
   typeLabel('Caffeinating…');
+  // the mug lives inside armR so arm and mug travel as one unit;
+  // the handle sits in the paw (grip point 16.5, 5 in sprite units)
   const mug = document.createElementNS(SVGNS, 'g');
-  mug.appendChild(rect(0, 0, 2, 3, '#efe7db'));
-  mug.appendChild(rect(0.25, 0.5, 1.5, 0.9, '#6b4433'));   // coffee
-  mug.appendChild(rect(2.05, 0.7, 0.4, 0.5, '#efe7db'));   // handle
-  mug.appendChild(rect(2.05, 1.9, 0.4, 0.5, '#efe7db'));
-  mug.appendChild(rect(2.3, 0.7, 0.15, 1.7, '#efe7db'));
-  mug.appendChild(rect(0, 3, 2, 0.45, '#d8cfc0'));         // base
+  mug.appendChild(rect(14.25, 3.45, 2, 3, '#efe7db'));      // cup
+  mug.appendChild(rect(14.5, 3.95, 1.5, 0.9, '#6b4433'));   // coffee
+  mug.appendChild(rect(16.3, 4.15, 0.4, 0.5, '#efe7db'));   // handle
+  mug.appendChild(rect(16.3, 5.35, 0.4, 0.5, '#efe7db'));
+  mug.appendChild(rect(16.55, 4.15, 0.15, 1.7, '#efe7db'));
+  mug.appendChild(rect(14.25, 6.45, 2, 0.45, '#d8cfc0'));   // base
   for (let i = 0; i < 3; i++) {
-    const s = rect(0.35 + i * 0.55, -0.9 - i * 0.6, 0.32, 0.64, '#c9c9c9');
+    const s = rect(14.6 + i * 0.55, 2.55 - i * 0.6, 0.32, 0.64, '#c9c9c9');
     s.setAttribute('class', 'steam');
     s.style.animationDelay = `${i * 0.45}s`;
     mug.appendChild(s);
   }
   mug.style.opacity = '0';
-  mug.style.transform = 'translate(17.2px, 6.4px)';
-  el.fx.appendChild(mug);
-  mug.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, fill: 'none' })
+  mug.style.transformOrigin = '84.1% 68.2%';   // the grip, in view-box terms
+  el.armR.insertBefore(mug, el.armR.firstChild);  // paw renders over the handle
+
+  state.eyeOverride = LOOK_RIGHT;              // notice the coffee
+  await sleep(250);
+  mug.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, fill: 'none' })
      .finished.catch(() => {});
   mug.style.opacity = '1';
+  await sleep(650);
 
-  state.eyeOverride = LOOK_RIGHT;            // notice the coffee
-  await sleep(600);
-  const reach = move(el.armR, 'translate(-0.3px,-1.2px)', 260);
-  await move(mug, 'translate(14.4px, 2.2px) rotate(-14deg)', 480, 'ease-in-out');
-  await reach;
-  state.eyeOverride = gaze(0.5, -0.2);
-  await blink(true);                          // happy closed-eye sip
-  await sleep(350);
-  await move(mug, 'translate(17.2px, 6.4px) rotate(0deg)', 460, 'ease-in-out');
-  await move(el.armR, 'translate(0,0)', 240);
+  // sip: arm and mug rise together, the mug tips toward the face
+  const tilt = move(mug, 'rotate(-16deg)', 520, 'ease-in-out');
+  await move(el.armR, 'translate(-0.7px,-1.9px)', 520, 'ease-in-out');
+  await tilt;
+  await blink(true);                           // happy closed-eye sip
+  await sleep(400);
+
+  // set it back down, still in the paw
+  const untilt = move(mug, 'rotate(0deg)', 480, 'ease-in-out');
+  await move(el.armR, 'translate(0,0)', 480, 'ease-in-out');
+  await untilt;
   state.eyeOverride = null;
-  await sleep(500);
+  await sleep(450);
   mug.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, fill: 'none' })
      .finished.then(() => mug.remove()).catch(() => mug.remove());
   restoreLabel();
