@@ -300,10 +300,10 @@ const SKINS = {
       { pts: [[9, 4.05], [9, 8], [11.7, 6.7]], f: '#D6D4CE' },                 // front sliver
       { pts: [[4.8, 2.05], [13.2, 2.05], [9, 4.05]], f: '#F3F2EE' },           // white wedge
     ],
-    armL: { rects: [{ r: [3.8, 4.4, 1.2, 1.8], rx: 0.6, f: '#6E6C68' }] },
-    armR: { rects: [{ r: [13.0, 4.4, 1.2, 1.8], rx: 0.6, f: '#55534F' }] },
-    feetL: [{ r: [6.6, 8.1, 1.4, 1.7], rx: 0.7, f: '#45433F' }],
-    feetR: [{ r: [10.0, 8.1, 1.4, 1.7], rx: 0.7, f: '#45433F' }],
+    armL: { rects: [{ r: [3.8, 4.5, 1.2, 1.6], f: '#6E6C68' }] },
+    armR: { rects: [{ r: [13.0, 4.5, 1.2, 1.6], f: '#55534F' }] },
+    feetL: [{ r: [6.7, 8.05, 1.3, 1.75], f: '#45433F' }],
+    feetR: [{ r: [10.0, 8.05, 1.3, 1.75], f: '#45433F' }],
     eyes: {
       color: '#26251F',
       make(side) {
@@ -322,7 +322,7 @@ const SKINS = {
     poof: ['#F3F2EE', '#8B8985', '#55534F'],
     raiseL: 'translate(1.2px,-2.6px)', raiseR: 'translate(-1.2px,-2.6px)',
     waveR: 'translate(-0.8px,-3.2px)',
-    events: () => [[evGlance, 4], [evShuffle, 3], [evFlip, 2.2], [evTabTab, 2], [evStretch, 1.2]],
+    events: () => [[evGlance, 4], [evShuffle, 3], [evSpin, 2.2], [evTabTab, 2], [evStretch, 1.2]],
     trick: 'tabtab',
   },
 };
@@ -813,7 +813,7 @@ async function evCoffee() {
 
 /* ---------- openai events ---------- */
 async function evSpin() {
-  typeLabel(pick(['Spinning up…', 'Reasoning…']));
+  typeLabel(pick(current.gerunds));
   el.jump.style.transformOrigin = '50% 55%';
   await move(el.jump, 'rotate(-25deg)', 280, 'ease-in-out');   // wind up
   await sleep(120);
@@ -888,27 +888,6 @@ async function evRain() {
 }
 
 /* ---------- cursor events ---------- */
-async function evFlip() {
-  typeLabel(pick(['Reindexing…', 'Refactoring…']));
-  // swap shading on faces, arms, and feet so the whole cube reads rotated
-  const lefts  = [skinParts.left,  ...el.armL.children, ...el.feetL.children];
-  const rights = [skinParts.right, ...el.armR.children, ...el.feetR.children];
-  const swapFills = () => lefts.forEach((n, i) => {
-    const r = rights[i];
-    if (!n || !r) return;
-    const lf = n.getAttribute('fill');
-    n.setAttribute('fill', r.getAttribute('fill'));
-    r.setAttribute('fill', lf);
-  });
-  for (let i = 0; i < 2; i++) {
-    await move(el.jump, 'scaleX(0.08)', 170, 'ease-in');
-    if (skinParts.left && skinParts.right) swapFills();
-    await move(el.jump, 'scaleX(1)', 210, 'cubic-bezier(.34,1.4,.5,1)');
-  }
-  el.jump.style.transform = '';
-  await sleep(300);
-  restoreLabel();
-}
 async function evTabTab() {
   await typeLabel('const nap = ');
   el.ghost.textContent = 'prevent()';          // ghost completion
@@ -1030,8 +1009,7 @@ window.addEventListener('resize', computeZones);
 const PLAY = {
   glance: evGlance, shuffle: evShuffle, stretch: evStretch,
   think: evThink, coffee: evCoffee,
-  spin: evSpin, bloom: evBloom,
-  flip: evFlip, tabtab: evTabTab,
+  spin: evSpin, bloom: evBloom, tabtab: evTabTab,
   float: evFloat, rain: evRain,
 };
 window.mascot = {
